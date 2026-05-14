@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Photo Tagger</title>
+  <style>
+    body {
+      width: 300px;
+      margin: 0;
+      padding: 16px 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+      font-size: 13px;
+      color: #1f1f1f;
+      line-height: 1.55;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .lead {
+      color: #5f6470;
+      font-size: 12px;
+      margin: 0 0 14px 0;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b6b6b;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 12px 0 6px 0;
+    }
+    .step {
+      margin: 6px 0;
+      padding-left: 18px;
+      position: relative;
+      font-size: 12.5px;
+    }
+    .step::before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: #888;
+    }
+    .links {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+    }
+    .links a {
+      color: #3b6cf7;
+      text-decoration: none;
+    }
+    .links a:hover { text-decoration: underline; }
+    code {
+      background: #f4f5f7;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 11.5px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>Photo Tagger</h1>
+  <p class="lead">Google フォトの写真にタグを付けて検索できるようにするツール。</p>
+
+  <div class="section-title">使い方</div>
+  <div class="step"><code>photos.google.com</code> を開く</div>
+  <div class="step">写真を選んで右下のオーバーレイにタグを入力</div>
+  <div class="step">サムネイルをホバー→○で複数選択して一括タグ付けも可能</div>
+  <div class="step">スマホからは PWA でタグ検索</div>
+
+  <div class="links">
+    <a href="#" id="open-options">タグの管理</a>
+    <a href="https://github.com/magu0914/photo-tagger" target="_blank" rel="noopener">GitHub</a>
+  </div>
+
+  <script>
+    document.getElementById('open-options').addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+  </script>
+</body>
+</html>

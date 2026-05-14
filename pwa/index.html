@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1116">
+  <meta name="description" content="Photo Tagger Mobile ― PCで付けたタグから写真をすぐ探せる">
+  <title>Photo Tagger</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.svg">
+  <link rel="icon" type="image/svg+xml" href="icon-192.svg">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__title">
+      <span class="topbar__icon">📌</span>
+      <span class="topbar__name">Photo Tagger</span>
+    </div>
+    <button id="signin-btn" class="topbar__btn" hidden>サインイン</button>
+    <div id="user-slot" class="user-slot"><!-- ユーザーアイコン+メニューがここに描画される --></div>
+  </header>
+
+  <main id="main">
+    <!-- 起動直後 -->
+    <section id="state-loading" class="state">
+      <div class="spinner"></div>
+      <p>読み込み中…</p>
+    </section>
+
+    <!-- 未サインイン -->
+    <section id="state-signin" class="state" hidden>
+      <div class="state-card">
+        <h1>Photo Tagger</h1>
+        <p>PC で付けたタグから写真をすぐ探せるモバイルビューアです。</p>
+        <p class="muted">Google アカウントでサインインすると、タグ情報（Drive の appDataFolder に保存されたもの）を読み込みます。写真本体や他のファイルにはアクセスしません。</p>
+        <button id="signin-btn-large" class="primary-btn">Google でサインイン</button>
+      </div>
+    </section>
+
+    <!-- 設定エラー -->
+    <section id="state-config-error" class="state" hidden>
+      <div class="state-card">
+        <h1>⚠️ 設定が必要です</h1>
+        <p><code>config.js</code> を作成して OAuth クライアント ID を設定してください。</p>
+        <pre><code>window.PHOTO_TAGGER_CONFIG = {
+  GOOGLE_CLIENT_ID: 'xxx.apps.googleusercontent.com'
+};</code></pre>
+        <p class="muted">詳細は <code>06_PWA_デプロイガイド.md</code> 参照。</p>
+      </div>
+    </section>
+
+    <!-- タグ一覧（デフォルト） -->
+    <section id="state-tags" class="state" hidden>
+      <div class="search-row">
+        <input id="search" type="search" placeholder="タグ名で検索…" autocomplete="off">
+      </div>
+      <div class="tag-meta" id="tag-meta"></div>
+      <div class="tag-grid" id="tag-grid"></div>
+      <div class="empty-msg" id="tag-empty" hidden>
+        <p>まだタグがありません。</p>
+        <p class="muted">PC で Chrome 拡張機能から写真にタグを付けると、ここに表示されます。</p>
+      </div>
+    </section>
+
+    <!-- 特定タグの写真グリッド -->
+    <section id="state-photos" class="state" hidden>
+      <div class="photos-header">
+        <button id="back-btn" class="back-btn" aria-label="戻る">←</button>
+        <div class="photos-title">
+          <span class="photos-title__name" id="photos-title-name"></span>
+          <span class="photos-title__count" id="photos-title-count"></span>
+        </div>
+      </div>
+      <div class="photos-note" id="photos-note" hidden></div>
+      <div class="photo-grid" id="photo-grid"></div>
+    </section>
+
+    <!-- エラー -->
+    <section id="state-error" class="state" hidden>
+      <div class="state-card">
+        <h1>❌ エラー</h1>
+        <p id="error-message"></p>
+        <button onclick="location.reload()" class="primary-btn">再読み込み</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <footer class="footer">
+    <a href="privacy.html">プライバシーポリシー</a>
+    <span class="footer-sep">·</span>
+    <span class="footer-version">Photo Tagger</span>
+  </footer>
+
+  <script src="config.js" onerror="window.__configMissing=true"></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

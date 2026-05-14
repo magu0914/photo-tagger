@@ -1,0 +1,601 @@
+/* content.css ― Photo Tagger オーバーレイ */
+
+#gpt-overlay {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 320px;
+  background: rgba(20, 20, 20, 0.94);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 12px 14px 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  z-index: 2147483647;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#gpt-overlay .gpt-overlay__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  color: #b9d6ff;
+}
+
+#gpt-overlay .gpt-overlay__close {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.6;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 0;
+}
+#gpt-overlay .gpt-overlay__close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#gpt-overlay .gpt-debug {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 6px;
+}
+
+#gpt-overlay code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+#gpt-overlay .gpt-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+/* ----- チップエリア ----- */
+#gpt-overlay .gpt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 24px;
+  margin: 6px 0 8px 0;
+}
+
+#gpt-overlay .gpt-chips__loading,
+#gpt-overlay .gpt-chips__empty,
+#gpt-overlay .gpt-chips__error {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+}
+#gpt-overlay .gpt-chips__error {
+  color: #ff8a8a;
+  font-style: normal;
+}
+
+#gpt-overlay .gpt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(120, 170, 255, 0.18);
+  color: #d8e8ff;
+  border: 1px solid rgba(120, 170, 255, 0.3);
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: nowrap;
+  max-width: 100%;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+#gpt-overlay .gpt-chip--removing {
+  opacity: 0.4;
+  transform: scale(0.92);
+}
+#gpt-overlay .gpt-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+#gpt-overlay .gpt-chip__remove {
+  background: transparent;
+  border: 0;
+  color: rgba(216, 232, 255, 0.7);
+  font-size: 14px;
+  line-height: 16px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+}
+#gpt-overlay .gpt-chip__remove:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* ----- 入力行 ----- */
+#gpt-overlay .gpt-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+#gpt-overlay .gpt-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+}
+#gpt-overlay .gpt-input:focus {
+  border-color: rgba(120, 170, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
+}
+#gpt-overlay .gpt-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+#gpt-overlay .gpt-add-btn {
+  background: rgba(120, 170, 255, 0.25);
+  border: 1px solid rgba(120, 170, 255, 0.4);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+#gpt-overlay .gpt-add-btn:hover:not(:disabled) {
+  background: rgba(120, 170, 255, 0.4);
+}
+#gpt-overlay .gpt-add-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+/* ----- ステータス ----- */
+#gpt-overlay .gpt-overlay__status {
+  margin-top: 6px;
+  font-size: 11px;
+  min-height: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+#gpt-overlay .gpt-overlay__status--success { color: #95e09b; }
+#gpt-overlay .gpt-overlay__status--error { color: #ff8a8a; }
+
+/* ----- 一覧画面の統計表示 ----- */
+#gpt-overlay .gpt-list-stats {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 2px 0 4px 0;
+}
+#gpt-overlay .gpt-list-stats--filtered {
+  color: #95c8ff;
+  font-weight: 500;
+}
+
+/* ----- フィルター UI ----- */
+#gpt-overlay .gpt-filter-section {
+  margin: 4px 0 6px 0;
+}
+#gpt-overlay .gpt-filter-label {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 4px;
+}
+#gpt-overlay .gpt-filter-empty {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+}
+#gpt-overlay .gpt-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 96px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+#gpt-overlay .gpt-filter-chips::-webkit-scrollbar {
+  width: 4px;
+}
+#gpt-overlay .gpt-filter-chips::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+#gpt-overlay .gpt-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+#gpt-overlay .gpt-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+#gpt-overlay .gpt-filter-chip--active {
+  background: rgba(120, 170, 255, 0.32);
+  border-color: rgba(120, 170, 255, 0.55);
+  color: #fff;
+}
+#gpt-overlay .gpt-filter-chip--active:hover {
+  background: rgba(120, 170, 255, 0.45);
+}
+#gpt-overlay .gpt-filter-chip__count {
+  font-size: 10px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+#gpt-overlay .gpt-filter-chip__name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#gpt-overlay .gpt-filter-clear {
+  margin-top: 6px;
+  background: transparent;
+  border: 0;
+  color: rgba(120, 170, 255, 0.85);
+  font-size: 10.5px;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 2px 0;
+}
+#gpt-overlay .gpt-filter-clear:hover {
+  color: #b3d2ff;
+  text-decoration: underline;
+}
+
+/* ----- 「結果を一覧で見る」ボタン ----- */
+#gpt-overlay .gpt-view-results-row {
+  margin: 6px 0 4px 0;
+}
+#gpt-overlay .gpt-view-results-btn {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(120,170,255,0.32), rgba(120,170,255,0.20));
+  color: #fff;
+  border: 1px solid rgba(120,170,255,0.5);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+#gpt-overlay .gpt-view-results-btn:hover {
+  background: linear-gradient(180deg, rgba(120,170,255,0.45), rgba(120,170,255,0.32));
+}
+#gpt-overlay .gpt-view-results-btn:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   フィルター結果を全画面表示するギャラリーモーダル
+   ============================================================================ */
+#gpt-gallery {
+  position: fixed;
+  inset: 0;
+  background: #0e1116;
+  color: #e8efff;
+  z-index: 2147483646; /* オーバーレイ (.gpt-overlay) より下、Google Photos より上 */
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+}
+#gpt-gallery .gpt-gallery__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: rgba(20, 24, 32, 0.96);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+#gpt-gallery .gpt-gallery__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+#gpt-gallery .gpt-gallery__icon { font-size: 16px; }
+#gpt-gallery .gpt-gallery__title-text {
+  letter-spacing: 0.01em;
+}
+#gpt-gallery .gpt-gallery__note {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.55);
+  text-align: right;
+  max-width: 480px;
+  line-height: 1.4;
+}
+#gpt-gallery .gpt-gallery__close {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+#gpt-gallery .gpt-gallery__close:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ----- グリッド ----- */
+#gpt-gallery .gpt-gallery__grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 32px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+#gpt-gallery .gpt-gallery__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 80px 0;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+}
+
+/* ----- セル ----- */
+#gpt-gallery .gpt-gallery__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+  padding: 4px;
+  transition: background 0.12s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+#gpt-gallery .gpt-gallery__cell:hover {
+  background: rgba(255,255,255,0.06);
+}
+#gpt-gallery .gpt-gallery__cell:active {
+  transform: scale(0.98);
+}
+
+#gpt-gallery .gpt-gallery__img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#gpt-gallery .gpt-gallery__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#gpt-gallery .gpt-gallery__img-wrap--placeholder {
+  background: rgba(255,255,255,0.04);
+  border: 1px dashed rgba(255,255,255,0.15);
+}
+#gpt-gallery .gpt-gallery__placeholder {
+  font-size: 32px;
+  opacity: 0.3;
+}
+
+#gpt-gallery .gpt-gallery__caption {
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.7);
+  padding: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+#gpt-gallery .gpt-gallery__caption--unknown {
+  font-style: italic;
+  color: rgba(255,255,255,0.4);
+}
+
+#gpt-gallery .gpt-gallery__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 0 4px;
+}
+#gpt-gallery .gpt-gallery__tag {
+  display: inline-block;
+  background: rgba(120,170,255,0.18);
+  color: #d8e8ff;
+  border: 1px solid rgba(120,170,255,0.3);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#gpt-gallery .gpt-gallery__tag--more {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.6);
+  border-color: rgba(255,255,255,0.15);
+}
+
+/* ============================================================================
+   複数選択モードでの一括タグ付けバー（画面下部に固定）
+   ============================================================================ */
+#gpt-bulk-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 24, 32, 0.96);
+  color: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 170, 255, 0.4);
+  padding: 12px 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  font-size: 13px;
+  z-index: 2147483647;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 480px;
+  max-width: 720px;
+}
+#gpt-bulk-bar .gpt-bulk-bar__count {
+  font-weight: 600;
+  color: #b9d6ff;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+#gpt-bulk-bar .gpt-bulk-bar__form {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+#gpt-bulk-bar .gpt-bulk-bar__input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  outline: none;
+  font-family: inherit;
+}
+#gpt-bulk-bar .gpt-bulk-bar__input:focus {
+  border-color: rgba(120, 170, 255, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+}
+#gpt-bulk-bar .gpt-bulk-bar__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+#gpt-bulk-bar .gpt-bulk-bar__submit {
+  background: linear-gradient(180deg, rgba(120,170,255,0.45), rgba(120,170,255,0.32));
+  border: 1px solid rgba(120, 170, 255, 0.6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+#gpt-bulk-bar .gpt-bulk-bar__submit:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(120,170,255,0.6), rgba(120,170,255,0.45));
+}
+#gpt-bulk-bar .gpt-bulk-bar__submit:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+#gpt-bulk-bar .gpt-bulk-bar__status {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(20, 24, 32, 0.92);
+  padding: 3px 10px;
+  border-radius: 5px;
+}
+#gpt-bulk-bar .gpt-bulk-bar__status:empty {
+  display: none;
+}
+#gpt-bulk-bar .gpt-bulk-bar__status--success { color: #95e09b; }
+#gpt-bulk-bar .gpt-bulk-bar__status--error { color: #ff8a8a; }
+
+/* ============================================================================
+   サムネイルに重ねるタグバッジ（一覧画面）
+   ============================================================================ */
+.gpt-thumb-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(20, 25, 35, 0.78);
+  color: #e8efff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 2px 7px 2px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 170, 255, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none; /* クリックを写真に通す */
+  max-width: calc(100% - 16px);
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.gpt-thumb-badge__icon {
+  font-size: 10px;
+  line-height: 1;
+  filter: saturate(1.1);
+}
+.gpt-thumb-badge__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+/* ----- フィルターで非該当のサムネイル ----- */
+.gpt-thumb-dimmed {
+  opacity: 0.18 !important;
+  filter: grayscale(0.6);
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
+.gpt-thumb-dimmed:hover {
+  opacity: 0.45 !important;
+  filter: grayscale(0.3);
+}

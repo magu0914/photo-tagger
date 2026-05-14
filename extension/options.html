@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Photo Tagger - タグ管理</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header class="page-header">
+    <h1>📌 Photo Tagger ― タグ管理</h1>
+    <div class="page-meta" id="page-meta"></div>
+  </header>
+
+  <main class="page-main">
+    <section class="toolbar">
+      <input type="search" id="search" placeholder="タグ名で検索…" autocomplete="off">
+      <select id="sort">
+        <option value="name">名前順</option>
+        <option value="count-desc" selected>件数（多い順）</option>
+        <option value="count-asc">件数（少ない順）</option>
+        <option value="created-desc">作成順（新しい）</option>
+        <option value="created-asc">作成順（古い）</option>
+      </select>
+      <button id="refresh" type="button">再読込</button>
+    </section>
+
+    <section class="tag-list">
+      <div id="loading" class="state-msg">読み込み中…</div>
+      <table id="tags-table" hidden>
+        <thead>
+          <tr>
+            <th>タグ名</th>
+            <th class="num">件数</th>
+            <th>作成日</th>
+            <th class="actions">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tags-body"></tbody>
+      </table>
+      <div id="empty" class="state-msg" hidden>まだタグがありません。Google フォトの写真詳細画面から最初のタグを付けましょう。</div>
+      <div id="error" class="state-msg state-msg--error" hidden></div>
+    </section>
+  </main>
+
+  <!-- 操作ダイアログ（モーダル） -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2 id="modal-title">操作</h2>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" type="button" class="btn-secondary">キャンセル</button>
+        <button id="modal-ok" type="button" class="btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1116">
+  <title>プライバシーポリシー - Photo Tagger</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .privacy-page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 20px 64px 20px;
+      line-height: 1.7;
+    }
+    .privacy-page h1 {
+      font-size: 22px;
+      margin: 0 0 8px 0;
+    }
+    .privacy-page h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 24px 0 8px 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .privacy-page p {
+      margin: 8px 0;
+      color: var(--text);
+    }
+    .privacy-page ul { padding-left: 20px; }
+    .privacy-page li { margin: 4px 0; }
+    .privacy-page .effective {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .privacy-page .back-link {
+      display: inline-block;
+      color: var(--accent);
+      text-decoration: none;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <main class="privacy-page">
+    <a href="./" class="back-link">← Photo Tagger に戻る</a>
+
+    <h1>プライバシーポリシー</h1>
+    <p class="effective">最終更新日: 2026 年 5 月 9 日</p>
+
+    <p>
+      Photo Tagger（以下「本サービス」）は、ユーザーが Google フォト Web に自分独自のタグを付けて整理・検索するためのツールです。
+      本ポリシーは、本サービスがユーザーのデータをどのように扱うかを説明します。
+    </p>
+
+    <h2>1. 取り扱う情報</h2>
+    <p>本サービスは以下の情報のみを取得・使用します：</p>
+    <ul>
+      <li><strong>Google アカウントの基本情報</strong>：メールアドレス、表示名、プロフィール画像 URL（サインイン時の表示用）</li>
+      <li><strong>Google フォト Web の写真ID と撮影日時</strong>：DOM から読み取り、タグとの紐付けに使用</li>
+      <li><strong>サムネイル画像（96×96 ピクセル程度）</strong>：本サービスの表示用にユーザー自身の Google Drive に保存</li>
+      <li><strong>ユーザーが入力したタグ名・タグ構成</strong>：ユーザー自身の Google Drive に保存</li>
+    </ul>
+
+    <h2>2. 取り扱わない情報</h2>
+    <p>本サービスは以下を <strong>一切取得しません</strong>：</p>
+    <ul>
+      <li>写真本体（オリジナル画像・動画ファイル）</li>
+      <li>Gmail、カレンダー、コンタクト、その他 Google サービスのデータ</li>
+      <li>Google Drive 上の他のファイル（本サービス専用フォルダ「appDataFolder」以外）</li>
+      <li>位置情報、デバイス情報（IP アドレス、UA 等）の追跡情報</li>
+      <li>クッキーやアナリティクスによる行動追跡</li>
+    </ul>
+
+    <h2>3. 情報の保存場所</h2>
+    <p>
+      タグ情報・サムネイルキャッシュは、すべて <strong>ユーザー自身の Google Drive 内の専用領域（<code>appDataFolder</code>）</strong> に保存されます。
+      この領域は本サービスが書き込んだデータのみが保存される隠しフォルダで、他のアプリや第三者からはアクセスできません。
+      本サービスの開発者・運営者・第三者がユーザーのデータを保有・閲覧することは <strong>ありません</strong>。
+    </p>
+
+    <h2>4. 情報の第三者提供</h2>
+    <p>
+      本サービスはバックエンドサーバーを持たず、すべての処理がユーザーのブラウザと Google API の間で直接行われます。
+      したがって <strong>第三者へのデータ提供は技術的に不可能</strong> です。
+    </p>
+
+    <h2>5. 使用する Google API スコープ</h2>
+    <ul>
+      <li><code>drive.appdata</code>：本サービス専用の Drive 隠しフォルダの読み書き（他のファイルにはアクセス不可）</li>
+      <li><code>openid</code> / <code>email</code> / <code>profile</code>：サインイン時のユーザー識別と表示</li>
+    </ul>
+    <p>これらは Google が「非機密スコープ」として分類している権限のみで、写真本体・他のサービスデータには一切アクセスしません。</p>
+
+    <h2>6. 情報の削除</h2>
+    <p>
+      ユーザーは以下の方法でいつでも本サービスのデータを削除できます：
+    </p>
+    <ul>
+      <li>
+        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">Google アカウントの「アプリの管理」</a>
+        からアクセス権を取り消す
+      </li>
+      <li>本サービスのタグ管理画面から個別にタグを削除</li>
+      <li>Google Drive のストレージ管理から、本サービスのアプリデータを削除</li>
+    </ul>
+
+    <h2>7. セキュリティ</h2>
+    <ul>
+      <li>すべての通信は HTTPS で暗号化されています</li>
+      <li>OAuth 認証は Google 公式の手順（Google Identity Services）に従っています</li>
+      <li>本サービスはアクセストークンを<strong>セッションストレージ</strong>にのみ保存し、タブを閉じると消去されます</li>
+    </ul>
+
+    <h2>8. 子供のプライバシー</h2>
+    <p>本サービスは 13 歳未満のユーザーを対象としていません。</p>
+
+    <h2>9. 本ポリシーの変更</h2>
+    <p>本ポリシーは予告なく変更される場合があります。重要な変更は本ページに反映されます。</p>
+
+    <h2>10. お問い合わせ</h2>
+    <p>本サービスに関するお問い合わせは、本サービスのソースコードリポジトリの Issue を通じてお願いします。</p>
+
+    <p style="margin-top: 32px;"><a href="./" class="back-link">← Photo Tagger に戻る</a></p>
+  </main>
+</body>
+</html>

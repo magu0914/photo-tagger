@@ -1,0 +1,27 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (将来 build を入れる場合)
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# 個人ローカル設定（PWA は config.js を共有してデプロイする想定だが、
+# 派生プロジェクトなどでローカル上書きしたい場合に使う）
+pwa/config.local.js
+extension/manifest.local.json
+
+# テスト・一時ファイル
+*.local
+*.tmp
+.cache/

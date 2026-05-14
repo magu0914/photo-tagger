@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Photo Tagger",
+  "version": "1.0.0",
+  "description": "Google フォトの写真に独自タグを付けて検索できるようにするツール。データはユーザー自身の Google Drive に保存されます。",
+  "permissions": [
+    "storage",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://photos.google.com/*"
+  ],
+  "oauth2": {
+    "client_id": "882143235239-0n26si064b5t1646e16p1pckhlf1orjb.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.appdata"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://photos.google.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Photo Tagger",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html"
+}
