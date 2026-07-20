@@ -488,6 +488,12 @@ main { padding: 16px; max-width: 960px; margin: 0 auto; }
 }
 .tag-picker__item {
   display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.tag-picker__name-btn {
+  flex: 1;
+  display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--surface-2);
@@ -500,8 +506,21 @@ main { padding: 16px; max-width: 960px; margin: 0 auto; }
   cursor: pointer;
   text-align: left;
 }
-.tag-picker__item:hover { background: rgba(120,170,255,0.15); }
+.tag-picker__name-btn:hover { background: rgba(120,170,255,0.15); }
 .tag-picker__count { color: var(--text-muted); font-size: 12px; }
+.tag-picker__exclude {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid rgba(255, 138, 138, 0.4);
+  color: var(--danger);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tag-picker__exclude:hover { background: rgba(255, 138, 138, 0.12); }
 .tag-picker__empty { color: var(--text-faint); padding: 20px; text-align: center; }
 
 /* ---- 一括タグ付けバー ---- */

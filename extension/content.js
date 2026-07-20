@@ -264,7 +264,17 @@
   // 同サイトの photos.fife.usercontent.google.com から認証付き fetch ができる
   async function fetchThumbnailAsBase64(thumbUrl, size = 96) {
     if (!thumbUrl) return null;
-    const url = thumbUrl.replace(/=w\d+-h\d+(-no)?/, `=w${size}-h${size}-no`);
+    // Google のサムネ URL のサイズ指定は「=w165-h220-no」「=s512」など複数形式がある。
+    // どちらの形式でも指定サイズに正規化して原寸取得を防ぐ。
+    let url;
+    if (/=w\d+-h\d+/.test(thumbUrl)) {
+      url = thumbUrl.replace(/=w\d+-h\d+(-[a-z]+)?/, `=w${size}-h${size}-c`);
+    } else if (/=s\d+/.test(thumbUrl)) {
+      url = thumbUrl.replace(/=s\d+(-[a-z]+)?/, `=s${size}-c`);
+    } else {
+      // サイズ指定が見当たらない場合は末尾に付与
+      url = thumbUrl + `=s${size}-c`;
+    }
     try {
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) {
@@ -272,8 +282,8 @@
         return null;
       }
       const blob = await res.blob();
-      // 大きすぎる thumbnail は除外（保存容量爆発防止）
-      if (blob.size > 50_000) {
+      // 念のための上限（96px なら通常 5KB 前後。異常に大きいものだけ弾く）
+      if (blob.size > 120_000) {
         console.warn('[GPT content] thumb too large', blob.size);
         return null;
       }

@@ -48,10 +48,11 @@ function el(tag, props = {}, children = []) {
 function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
 // ---- 状態管理 -----------------------------------------------------------
-const STATES = ['loading', 'signin', 'config-error', 'tags', 'photos', 'error'];
+const STATES = ['loading', 'signin', 'config-error', 'tags', 'error'];
 function showState(name) {
   for (const s of STATES) {
-    $('#state-' + s).hidden = s !== name;
+    const elm = $('#state-' + s);
+    if (elm) elm.hidden = s !== name;
   }
 }
 
@@ -505,26 +506,27 @@ function renderTagPickerList(filter) {
     list.appendChild(el('div', { class: 'tag-picker__empty', text: 'タグがありません' }));
     return;
   }
+  const addTerm = (prefix, name) => {
+    const cur = $('#search').value.trim();
+    $('#search').value = (cur ? cur + ' ' : '') + prefix + name;
+    closeTagPicker();
+    renderMain();
+  };
   for (const t of tags) {
-    const row = el('button', { class: 'tag-picker__item', type: 'button' });
-    row.appendChild(el('span', { class: 'tag-picker__name', text: t.name }));
-    row.appendChild(el('span', { class: 'tag-picker__count', text: `${t.count}` }));
-    // タップ = 検索に追加、長押し = 除外に追加
-    let pressTimer = null, longPressed = false;
-    const addTerm = (prefix) => {
-      const cur = $('#search').value.trim();
-      $('#search').value = (cur ? cur + ' ' : '') + prefix + t.name;
-      closeTagPicker();
-      renderMain();
-    };
-    row.addEventListener('click', () => { if (!longPressed) addTerm(''); longPressed = false; });
-    row.addEventListener('pointerdown', () => {
-      longPressed = false;
-      pressTimer = setTimeout(() => { longPressed = true; addTerm('-'); }, 500);
+    const row = el('div', { class: 'tag-picker__item' });
+    // 名前部分（タップで検索に追加）
+    const nameBtn = el('button', { class: 'tag-picker__name-btn', type: 'button' });
+    nameBtn.appendChild(el('span', { class: 'tag-picker__name', text: t.name }));
+    nameBtn.appendChild(el('span', { class: 'tag-picker__count', text: `${t.count}` }));
+    nameBtn.addEventListener('click', () => addTerm('', t.name));
+    row.appendChild(nameBtn);
+    // 除外ボタン
+    const exBtn = el('button', {
+      class: 'tag-picker__exclude', type: 'button',
+      title: 'このタグを含まないものを検索', text: '除外',
     });
-    const cancelPress = () => { if (pressTimer) clearTimeout(pressTimer); };
-    row.addEventListener('pointerup', cancelPress);
-    row.addEventListener('pointerleave', cancelPress);
+    exBtn.addEventListener('click', () => addTerm('-', t.name));
+    row.appendChild(exBtn);
     list.appendChild(row);
   }
 }
