@@ -924,39 +924,37 @@
       const input = el('input', {
         class: 'gpt-bulk-bar__input',
         type: 'text',
-        placeholder: '選択した写真にまとめて付けるタグ…',
-        maxlength: '64',
+        placeholder: 'まとめて付けるタグ（カンマ , で複数）…',
+        maxlength: '200',
         autocomplete: 'off',
         spellcheck: 'false',
       });
       const submit = el('button', { class: 'gpt-bulk-bar__submit', type: 'submit', text: '一括タグ付け' });
       form.appendChild(input);
       form.appendChild(submit);
-      form.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = input.value.trim();
-        if (!name) return;
+        // カンマ（半角 , / 全角 、）だけで分割。スペースはタグ名の一部として残す。
+        const names = input.value.split(/[,、]+/).map(s => s.trim()).filter(Boolean);
+        if (names.length === 0) return;
         const currentItems = getSelectedPhotoIds();
         if (currentItems.length === 0) return;
-        submit.disabled = true;
-        try {
-          const res = await rpc('bulk_add_tag', { items: currentItems, name });
-          // ローカル反映 + サムネイルデータ取得（一括）
-          for (const { photoId, meta } of currentItems) {
-            applyLocalAdd(photoId, res.tag, meta);
-            refreshBadgeFor(photoId);
-            if (meta?.thumbnailUrl) {
-              maybeBackfillThumbData(photoId, meta.thumbnailUrl);
+
+        // --- 即座に反映（バッジ表示）。保存は裏で。---
+        input.value = '';
+        input.focus();
+        showBulkStatus(`${currentItems.length} 件に「${names.join('、')}」を追加中…`, 'info');
+
+        rpc('bulk_add_tags', { items: currentItems, names })
+          .then(res => {
+            for (const { photoId, meta } of currentItems) {
+              for (const tag of (res.tags ?? [])) applyLocalAdd(photoId, tag, meta);
+              refreshBadgeFor(photoId);
+              if (meta?.thumbnailUrl) maybeBackfillThumbData(photoId, meta.thumbnailUrl);
             }
-          }
-          input.value = '';
-          showBulkStatus(`タグ「${res.tag.name}」を ${res.added} 件に追加${res.alreadyHad > 0 ? `（${res.alreadyHad} 件は既に付与済み）` : ''}`, 'success');
-        } catch (err) {
-          showBulkStatus('失敗: ' + err.message, 'error');
-        } finally {
-          submit.disabled = false;
-          input.focus();
-        }
+            showBulkStatus(`${currentItems.length} 件に ${names.length} 個のタグを付けました`, 'success');
+          })
+          .catch(err => showBulkStatus('保存に失敗しました: ' + err.message, 'error'));
       });
       bar.appendChild(form);
       bar.appendChild(el('div', { class: 'gpt-bulk-bar__status' }));

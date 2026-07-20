@@ -392,6 +392,50 @@ async function bulkAddTag(photoIdMetaPairs, tagName, color) {
   return { tag, added, alreadyHad, total: photoIdMetaPairs.length };
 }
 
+// 複数写真に複数タグを一度に付ける（保存は tags/mappings 各 1 回）
+async function bulkAddTags(photoIdMetaPairs, names) {
+  if (!Array.isArray(photoIdMetaPairs) || photoIdMetaPairs.length === 0) {
+    throw new Error('photo list required');
+  }
+  const cleanNames = (names || []).map(n => (n || '').trim()).filter(Boolean);
+  if (cleanNames.length === 0) throw new Error('tag names required');
+
+  const [tags, mappings] = await Promise.all([loadTags(), loadMappings()]);
+  const resultTags = [];
+  let tagsChanged = false;
+  for (const name of cleanNames) {
+    let tag = tags.tags.find(t => t.name === name);
+    if (!tag) {
+      tag = { id: newTagId(), name, color: null, createdAt: new Date().toISOString() };
+      tags.tags.push(tag);
+      tagsChanged = true;
+    }
+    resultTags.push(tag);
+  }
+
+  let mappingsChanged = false;
+  for (const { photoId, meta } of photoIdMetaPairs) {
+    let entry = mappings.items[photoId];
+    if (!entry) {
+      entry = { tagIds: [], updatedAt: new Date().toISOString(), meta: meta ?? null, libraryApiId: null };
+      mappings.items[photoId] = entry;
+    }
+    let changed = false;
+    for (const tag of resultTags) {
+      if (!entry.tagIds.includes(tag.id)) { entry.tagIds.push(tag.id); changed = true; }
+    }
+    if (changed) {
+      entry.updatedAt = new Date().toISOString();
+      if (meta) entry.meta = { ...(entry.meta ?? {}), ...meta };
+      mappingsChanged = true;
+    }
+  }
+
+  if (tagsChanged) scheduleWrite('tags');
+  if (mappingsChanged) scheduleWrite('mappings');
+  return { tags: resultTags, total: photoIdMetaPairs.length };
+}
+
 // 写真の meta（撮影日時・サムネイル URL 等）のみを更新する
 // バックフィル用途：既存のタグ付け済み写真にサムネイル URL を後から追記
 async function updatePhotoMeta(photoId, meta) {
@@ -461,6 +505,7 @@ const handlers = {
   prune_empty_tags: async () => await pruneEmptyTags(),
   // 一括タグ付け（複数選択モード用）
   bulk_add_tag: async ({ items, name, color }) => await bulkAddTag(items, name, color),
+  bulk_add_tags: async ({ items, names }) => await bulkAddTags(items, names),
   // デバッグ用：キャッシュクリア
   reset_cache: async () => {
     cache.tags = null;
