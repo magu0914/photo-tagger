@@ -71,6 +71,39 @@
   let _indexLoading = null;
 
   const _activeFilters = new Set(); // tagId のセット
+  let _filterMode = 'and';           // 'and' = すべてのタグを含む / 'or' = いずれかを含む
+  let _mediaFilter = 'all';          // 'all' | 'photo' | 'video'
+
+  // DOM のアンカーから写真か動画かを判定する（動画は aria-label に「動画」を含むか、
+  // 再生時間バッジ（分:秒）を持つ）
+  function anchorMediaType(anchor) {
+    const aria = anchor.getAttribute('aria-label') || '';
+    if (aria.includes('動画') || /\d+:\d{2}/.test(anchor.textContent || '')) return 'video';
+    return 'photo';
+  }
+
+  // フィルターが 1 つでも有効か
+  function isFilterActive() {
+    return _activeFilters.size > 0 || _mediaFilter !== 'all';
+  }
+
+  // mappings のエントリがフィルター条件に一致するか（ギャラリー・件数用）
+  function entryMatchesFilter(entry) {
+    if (!entry) return false;
+    if (_mediaFilter !== 'all') {
+      const mt = entry.meta?.mediaType ?? 'photo';
+      if (mt !== _mediaFilter) return false;
+    }
+    if (_activeFilters.size > 0) {
+      const tagIds = entry.tagIds ?? [];
+      if (_filterMode === 'and') {
+        for (const f of _activeFilters) if (!tagIds.includes(f)) return false;
+      } else {
+        if (!tagIds.some(f => _activeFilters.has(f))) return false;
+      }
+    }
+    return true;
+  }
 
   async function ensureIndex() {
     if (_mappings && _tagsIndex) return;
@@ -131,6 +164,12 @@
     if (!entry) return;
     entry.tagIds = entry.tagIds.filter(id => id !== tagId);
     if (entry.tagIds.length === 0) delete _mappings[photoId];
+    // このタグを使う写真が 1 枚も無くなったら、ローカルのタグ一覧からも外す
+    const stillUsed = Object.values(_mappings).some(e => e.tagIds.includes(tagId));
+    if (!stillUsed && _tagsIndex) {
+      delete _tagsIndex[tagId];
+      _activeFilters.delete(tagId);
+    }
   }
   function applyLocalMeta(photoId, meta) {
     if (!_mappings || !_mappings[photoId] || !meta) return;
@@ -150,6 +189,8 @@
       aria.includes('縦向き') ? 'portrait'
       : aria.includes('横向き') ? 'landscape'
       : aria.includes('動画') ? 'video' : 'unknown';
+    // 写真 / 動画の自動判定（フィルター用）
+    const mediaType = anchorMediaType(a);
     const thumbDiv = a.querySelector('div[data-latest-bg]');
     const thumbnailUrl = thumbDiv?.getAttribute('data-latest-bg') ?? null;
     return {
@@ -157,6 +198,7 @@
         ? `${tsMatch[1]}-${tsMatch[2].padStart(2,'0')}-${tsMatch[3].padStart(2,'0')}T${tsMatch[4].padStart(2,'0')}:${tsMatch[5]}:${tsMatch[6]}`
         : null,
       orientation,
+      mediaType,
       thumbnailUrl,
     };
   }
@@ -191,12 +233,18 @@
     const entry = _mappings[id];
     if (!entry || entry.tagIds.length === 0) return;
 
-    // (1) サムネイル URL が無ければ DOM から取得
-    if (!entry.meta?.thumbnailUrl) {
+    // (1) サムネイル URL または mediaType が無ければ DOM から取得
+    if (!entry.meta?.thumbnailUrl || !entry.meta?.mediaType) {
       const meta = extractMetaFromAnchor(anchor);
-      if (meta?.thumbnailUrl) {
-        applyLocalMeta(id, meta);
-        queueBackfillMeta(id, meta);
+      // 送信は変化があった分だけ。mediaType は必ず入るので更新対象になる
+      const patch = {};
+      if (meta.mediaType && entry.meta?.mediaType !== meta.mediaType) patch.mediaType = meta.mediaType;
+      if (meta.thumbnailUrl && !entry.meta?.thumbnailUrl) patch.thumbnailUrl = meta.thumbnailUrl;
+      if (meta.creationTime && !entry.meta?.creationTime) patch.creationTime = meta.creationTime;
+      if (meta.orientation && !entry.meta?.orientation) patch.orientation = meta.orientation;
+      if (Object.keys(patch).length > 0) {
+        applyLocalMeta(id, patch);
+        queueBackfillMeta(id, patch);
       }
     }
 
@@ -309,26 +357,33 @@
   // ---- フィルター適用 -----------------------------------------------------
   function applyFilterToAll() {
     const anchors = document.querySelectorAll('a[href*="/photo/AF1Qip"]');
-    if (_activeFilters.size === 0) {
+    if (!isFilterActive()) {
       anchors.forEach(a => a.classList.remove(DIMMED_CLASS));
       return;
     }
     anchors.forEach(a => {
       const id = extractIdFromAnchor(a);
       if (!id) return;
-      const tagIds = getTagIdsLocal(id);
-      const matches = tagIds.some(tagId => _activeFilters.has(tagId));
-      if (matches) a.classList.remove(DIMMED_CLASS);
-      else a.classList.add(DIMMED_CLASS);
+      let ok = true;
+      // メディア種別フィルター（DOM から直接判定できるので未タグ写真にも効く）
+      if (_mediaFilter !== 'all' && anchorMediaType(a) !== _mediaFilter) ok = false;
+      // タグフィルター
+      if (ok && _activeFilters.size > 0) {
+        const tagIds = getTagIdsLocal(id);
+        ok = _filterMode === 'and'
+          ? Array.from(_activeFilters).every(f => tagIds.includes(f))
+          : tagIds.some(f => _activeFilters.has(f));
+      }
+      a.classList.toggle(DIMMED_CLASS, !ok);
     });
   }
 
   // フィルター条件にマッチする全写真ID（_mappings 全体）
   function getAllMatchingIds() {
-    if (!_mappings || _activeFilters.size === 0) return [];
+    if (!_mappings || !isFilterActive()) return [];
     const result = [];
     for (const [id, entry] of Object.entries(_mappings)) {
-      if (entry.tagIds.some(tagId => _activeFilters.has(tagId))) result.push(id);
+      if (entryMatchesFilter(entry)) result.push(id);
     }
     return result;
   }
@@ -336,11 +391,14 @@
   // ---- ギャラリーモーダル -------------------------------------------------
   function openGallery() {
     closeGallery();
-    if (_activeFilters.size === 0) return;
+    if (!isFilterActive()) return;
     const matchedIds = getAllMatchingIds();
     const filterTagNames = Array.from(_activeFilters)
       .map(id => _tagsIndex?.[id]?.name)
       .filter(Boolean);
+    // メディアフィルターもタイトルに含める
+    if (_mediaFilter === 'photo') filterTagNames.push('画像');
+    else if (_mediaFilter === 'video') filterTagNames.push('動画');
 
     // 撮影日時降順でソート（meta が無いものは末尾）
     const items = matchedIds
@@ -664,26 +722,76 @@
     }
   }
 
+  // メディア種別セグメント（すべて / 画像 / 動画）
+  function buildMediaSegment() {
+    const row = el('div', { class: 'gpt-media-seg' });
+    const opts = [['all', 'すべて'], ['photo', '画像'], ['video', '動画']];
+    for (const [val, label] of opts) {
+      const btn = el('button', {
+        class: 'gpt-media-seg__btn' + (_mediaFilter === val ? ' gpt-media-seg__btn--active' : ''),
+        type: 'button', text: label,
+      });
+      btn.addEventListener('click', () => {
+        _mediaFilter = val;
+        applyFilterToAll();
+        lastRenderedKey = null;
+        renderListPage();
+      });
+      row.appendChild(btn);
+    }
+    return row;
+  }
+
+  // AND / OR トグル
+  function buildModeToggle() {
+    const toggle = el('button', {
+      class: 'gpt-mode-toggle', type: 'button',
+      title: 'タグの組み合わせ方を切り替え',
+      text: _filterMode === 'and' ? 'すべて含む (AND)' : 'いずれか (OR)',
+    });
+    toggle.addEventListener('click', () => {
+      _filterMode = _filterMode === 'and' ? 'or' : 'and';
+      applyFilterToAll();
+      lastRenderedKey = null;
+      renderListPage();
+    });
+    return toggle;
+  }
+
   function renderFilterSection() {
     const section = ensureOverlay().querySelector('.gpt-filter-section');
     if (!section) return;
     clear(section);
+
+    // メディア種別セグメントは常に表示（タグが無くても使える）
+    section.appendChild(el('div', { class: 'gpt-filter-label', text: '種類' }));
+    section.appendChild(buildMediaSegment());
+
     if (!_tagsIndex || Object.keys(_tagsIndex).length === 0) {
       section.appendChild(el('div', { class: 'gpt-filter-empty', text: '（まだタグがありません）' }));
       return;
     }
-    section.appendChild(el('div', { class: 'gpt-filter-label', text: 'タグでフィルター（複数選択可）' }));
+
+    // タグフィルターの見出し + AND/OR トグル
+    const labelRow = el('div', { class: 'gpt-filter-label-row' });
+    labelRow.appendChild(el('span', { class: 'gpt-filter-label', text: 'タグ（複数選択可）' }));
+    if (_activeFilters.size >= 2) labelRow.appendChild(buildModeToggle());
+    section.appendChild(labelRow);
+
     const chipsRow = el('div', { class: 'gpt-filter-chips' });
     const sortedTags = Object.values(_tagsIndex).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
     for (const tag of sortedTags) chipsRow.appendChild(buildFilterChip(tag));
     section.appendChild(chipsRow);
-    if (_activeFilters.size > 0) {
+
+    if (isFilterActive()) {
       const clearBtn = el('button', {
         class: 'gpt-filter-clear', type: 'button',
-        text: `フィルター解除 (${_activeFilters.size})`,
+        text: 'フィルター解除',
       });
       clearBtn.addEventListener('click', () => {
         _activeFilters.clear();
+        _mediaFilter = 'all';
+        _filterMode = 'and';
         applyFilterToAll();
         lastRenderedKey = null;
         renderListPage();
@@ -696,7 +804,7 @@
     const row = ensureOverlay().querySelector('.gpt-view-results-row');
     if (!row) return;
     clear(row);
-    if (_activeFilters.size === 0) return;
+    if (!isFilterActive()) return;
     const matchedCount = getAllMatchingIds().length;
     const btn = el('button', {
       class: 'gpt-view-results-btn',
@@ -711,9 +819,9 @@
     const stats = ensureOverlay().querySelector('.gpt-list-stats');
     if (!stats) return;
     const all = document.querySelectorAll('a[href*="/photo/AF1Qip"]').length;
-    if (_activeFilters.size > 0) {
+    if (isFilterActive()) {
       const totalMatch = getAllMatchingIds().length;
-      stats.textContent = `表示中 ${all} 件 / 全タグ条件一致 ${totalMatch} 件`;
+      stats.textContent = `表示中 ${all} 件 / 条件一致 ${totalMatch} 件`;
       stats.classList.add('gpt-list-stats--filtered');
     } else {
       const tagged = _mappings ? Object.keys(_mappings).length : 0;

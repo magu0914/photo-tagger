@@ -361,6 +361,32 @@ main { padding: 16px; max-width: 960px; margin: 0 auto; }
   margin-bottom: 12px;
 }
 
+/* ---- メディア種別セグメント ---- */
+.media-seg {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.media-seg__btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 34px;
+}
+.media-seg__btn--active {
+  background: var(--accent-bg);
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* ---- Photo grid ---- */
 .photo-grid {
   display: grid;

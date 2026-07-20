@@ -226,9 +226,39 @@ async function removeTagFromPhoto(photoId, tagId) {
   entry.tagIds = entry.tagIds.filter(id => id !== tagId);
   if (entry.tagIds.length !== before) {
     entry.updatedAt = new Date().toISOString();
+    // タグを付けた写真が 1 枚も無くなったら、空タグをマスターからも削除する
+    await pruneTagIfEmpty(tagId, mappings);
     scheduleWrite('mappings');
   }
   return entry;
+}
+
+// 指定タグを使う写真が 1 枚も無ければ tags.json から削除する
+async function pruneTagIfEmpty(tagId, mappings) {
+  const stillUsed = Object.values(mappings.items).some(e => e.tagIds.includes(tagId));
+  if (stillUsed) return false;
+  const tags = await loadTags();
+  const before = tags.tags.length;
+  tags.tags = tags.tags.filter(t => t.id !== tagId);
+  if (tags.tags.length !== before) {
+    scheduleWrite('tags');
+    return true;
+  }
+  return false;
+}
+
+// 既存の空タグ（どの写真にも付いていないタグ）を一括削除する
+async function pruneEmptyTags() {
+  const [tags, mappings] = await Promise.all([loadTags(), loadMappings()]);
+  const used = new Set();
+  for (const entry of Object.values(mappings.items)) {
+    for (const id of entry.tagIds) used.add(id);
+  }
+  const before = tags.tags.length;
+  const removed = tags.tags.filter(t => !used.has(t.id)).map(t => t.name);
+  tags.tags = tags.tags.filter(t => used.has(t.id));
+  if (tags.tags.length !== before) scheduleWrite('tags');
+  return { removed, count: removed.length };
 }
 
 // タグ管理：リネーム
@@ -383,6 +413,8 @@ const handlers = {
   rename_tag: async ({ tagId, newName }) => ({ tag: await renameTag(tagId, newName) }),
   delete_tag: async ({ tagId }) => await deleteTag(tagId),
   merge_tags: async ({ sourceTagId, targetTagId }) => await mergeTags(sourceTagId, targetTagId),
+  // 空タグ（どの写真にも付いていないタグ）を一括削除
+  prune_empty_tags: async () => await pruneEmptyTags(),
   // 一括タグ付け（複数選択モード用）
   bulk_add_tag: async ({ items, name, color }) => await bulkAddTag(items, name, color),
   // デバッグ用：キャッシュクリア

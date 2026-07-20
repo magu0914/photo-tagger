@@ -210,6 +210,61 @@
   color: rgba(255, 255, 255, 0.45);
   font-style: italic;
 }
+#gpt-overlay .gpt-filter-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0 4px 0;
+}
+#gpt-overlay .gpt-filter-label-row .gpt-filter-label {
+  margin-bottom: 0;
+}
+
+/* メディア種別セグメント */
+#gpt-overlay .gpt-media-seg {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 2px;
+  margin-bottom: 4px;
+}
+#gpt-overlay .gpt-media-seg__btn {
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+#gpt-overlay .gpt-media-seg__btn:hover {
+  color: #fff;
+}
+#gpt-overlay .gpt-media-seg__btn--active {
+  background: rgba(120, 170, 255, 0.4);
+  color: #fff;
+}
+
+/* AND / OR トグル */
+#gpt-overlay .gpt-mode-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#gpt-overlay .gpt-mode-toggle:hover {
+  background: rgba(120, 170, 255, 0.3);
+  color: #fff;
+}
 #gpt-overlay .gpt-filter-chips {
   display: flex;
   flex-wrap: wrap;

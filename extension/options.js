@@ -256,6 +256,20 @@ $('#refresh').addEventListener('click', () => {
   // キャッシュもクリアして再取得
   rpc('reset_cache').finally(() => loadAll());
 });
+$('#prune').addEventListener('click', async () => {
+  try {
+    const res = await rpc('prune_empty_tags');
+    if (res.count > 0) {
+      toast(`空タグを ${res.count} 件削除しました（${res.removed.join('、')}）`, 'success');
+    } else {
+      toast('空タグはありませんでした', 'info');
+    }
+    await rpc('reset_cache');
+    await loadAll();
+  } catch (err) {
+    toast('失敗: ' + err.message, 'error');
+  }
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
 });
