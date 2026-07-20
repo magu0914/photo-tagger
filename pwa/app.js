@@ -625,19 +625,21 @@ function normalizeThumbUrl(url, size = 320) {
   return url.replace(/=w\d+-h\d+(-no)?/, `=w${size}-h${size}-no`);
 }
 
-// Android のときは Google フォトの純正アプリで開きやすくする intent URL を返す。
-// intent の failback で通常の https URL に戻せるため、アプリ未インストールでも壊れない。
-// PC・iPhone などでは通常の https URL を返す。
 function isAndroid() {
   return /android/i.test(navigator.userAgent);
 }
+// Google フォトの写真URL。Android では OS の「対応リンクを開く」設定に従って
+// 純正アプリで開かれる（アプリ側の設定が ON になっていれば）。
 function googlePhotosUrl(photoId) {
-  const web = `https://photos.google.com/photo/${photoId}`;
-  if (!isAndroid()) return web;
-  // intent スキーム：まず com.google.android.apps.photos で開こうとする。
-  // 失敗時（アプリ未インストール等）は S.browser_fallback_url で web に戻る。
-  const fallback = encodeURIComponent(web);
-  return `intent://photos.google.com/photo/${photoId}#Intent;scheme=https;package=com.google.android.apps.photos;S.browser_fallback_url=${fallback};end`;
+  return `https://photos.google.com/photo/${photoId}`;
+}
+// リンクを外部で開く（Android では OS の関連付けに従って純正アプリが起動する)
+function openInGooglePhotos(photoId, event) {
+  const url = googlePhotosUrl(photoId);
+  if (event) event.preventDefault();
+  // PWA スタンドアロンだと a[target=_blank] が無視されがちなので window.open で明示
+  const w = window.open(url, '_blank', 'noopener');
+  if (!w) location.href = url; // ポップアップブロック時のフォールバック
 }
 
 // ============================================================================
@@ -784,7 +786,9 @@ function openPhotoEditor(item) {
   }
 
   // Google フォトで開くリンク
-  $('#editor-open').setAttribute('href', googlePhotosUrl(item.id));
+  const openLink = $('#editor-open');
+  openLink.setAttribute('href', googlePhotosUrl(item.id));
+  openLink.onclick = (e) => openInGooglePhotos(item.id, e);
 
   renderEditorTags();
   $('#editor-input').value = '';
