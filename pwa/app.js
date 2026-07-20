@@ -546,12 +546,12 @@ $$('#media-seg .media-seg__btn').forEach(btn => {
 });
 
 function buildPhotoCell(item) {
-  const cell = el('a', {
+  // タップでタグ編集モーダルを開く
+  const cell = el('button', {
     class: 'photo-cell',
-    href: `https://photos.google.com/photo/${item.id}`,
-    target: '_blank',
-    rel: 'noopener',
-    'aria-label': '写真を開く',
+    type: 'button',
+    'aria-label': 'タグを編集',
+    onclick: () => openPhotoEditor(item),
   });
   let imgSrc = null;
   let isInline = false;
@@ -589,6 +589,196 @@ function normalizeThumbUrl(url, size = 320) {
 
 $('#back-btn').addEventListener('click', () => { history.back(); });
 window.addEventListener('popstate', () => { showState('tags'); });
+
+// ============================================================================
+// タグ編集（既存写真へのタグ追加・削除）
+// ============================================================================
+
+// ---- Drive 書き込み -----------------------------------------------------
+async function writeJsonFile(name, data) {
+  const id = await findFileId(name);
+  const body = JSON.stringify(data);
+  if (id) {
+    const res = await authedFetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }
+    );
+    if (!res.ok) throw new Error(`保存に失敗しました (${res.status})`);
+    return await res.json();
+  }
+  // 新規作成（appDataFolder にファイルを作る）
+  const boundary = '----pt' + Math.random().toString(36).slice(2);
+  const metadata = { name, parents: ['appDataFolder'], mimeType: 'application/json' };
+  const multipart =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+    JSON.stringify(metadata) +
+    `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+    body + `\r\n--${boundary}--`;
+  const res = await authedFetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body: multipart }
+  );
+  if (!res.ok) throw new Error(`作成に失敗しました (${res.status})`);
+  return await res.json();
+}
+
+function newTagId() {
+  return 'tag_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function recomputeCounts() {
+  _tagCounts = {};
+  for (const t of _tags) _tagCounts[t.id] = 0;
+  for (const entry of Object.values(_mappings)) {
+    for (const id of (entry.tagIds ?? [])) {
+      if (_tagCounts[id] !== undefined) _tagCounts[id]++;
+    }
+  }
+}
+
+let _tagsDirty = false;
+async function persistChanges() {
+  const jobs = [
+    writeJsonFile('mappings.json', {
+      version: 1, updatedAt: new Date().toISOString(), items: _mappings,
+    }),
+  ];
+  if (_tagsDirty) {
+    jobs.push(writeJsonFile('tags.json', {
+      version: 1, updatedAt: new Date().toISOString(), tags: _tags,
+    }));
+  }
+  await Promise.all(jobs);
+  _tagsDirty = false;
+}
+
+// 写真に既存 or 新規のタグを付ける
+async function addTagToPhotoPWA(photoId, tagName) {
+  const trimmed = tagName.trim();
+  if (!trimmed) return null;
+  let tag = _tags.find(t => t.name === trimmed);
+  if (!tag) {
+    tag = { id: newTagId(), name: trimmed, color: null, createdAt: new Date().toISOString() };
+    _tags.push(tag);
+    _tagsDirty = true;
+  }
+  const entry = _mappings[photoId];
+  if (!entry) throw new Error('この写真の情報が見つかりません');
+  if (!entry.tagIds.includes(tag.id)) {
+    entry.tagIds.push(tag.id);
+    entry.updatedAt = new Date().toISOString();
+  }
+  recomputeCounts();
+  await persistChanges();
+  return tag;
+}
+
+// 写真からタグを外す（空になったタグは自動削除）
+async function removeTagFromPhotoPWA(photoId, tagId) {
+  const entry = _mappings[photoId];
+  if (!entry) return;
+  entry.tagIds = entry.tagIds.filter(id => id !== tagId);
+  entry.updatedAt = new Date().toISOString();
+  if (entry.tagIds.length === 0) delete _mappings[photoId];
+  const stillUsed = Object.values(_mappings).some(e => e.tagIds.includes(tagId));
+  if (!stillUsed) {
+    _tags = _tags.filter(t => t.id !== tagId);
+    _tagsDirty = true;
+  }
+  recomputeCounts();
+  await persistChanges();
+}
+
+// ---- 編集モーダル -------------------------------------------------------
+let _editorPhotoId = null;
+
+function openPhotoEditor(item) {
+  _editorPhotoId = item.id;
+  const modal = $('#editor');
+
+  // サムネイル
+  const thumbWrap = $('#editor-thumb');
+  clear(thumbWrap);
+  const src = item.meta?.thumbnailData
+    ? item.meta.thumbnailData
+    : (item.meta?.thumbnailUrl ? normalizeThumbUrl(item.meta.thumbnailUrl, 320) : null);
+  if (src) {
+    const img = el('img', { src, alt: '' });
+    if (!item.meta?.thumbnailData) img.setAttribute('referrerpolicy', 'no-referrer');
+    thumbWrap.appendChild(img);
+  } else {
+    thumbWrap.appendChild(el('div', { class: 'photo-cell__placeholder', text: '🖼' }));
+  }
+
+  // Google フォトで開くリンク
+  $('#editor-open').setAttribute('href', `https://photos.google.com/photo/${item.id}`);
+
+  renderEditorTags();
+  $('#editor-input').value = '';
+  modal.hidden = false;
+}
+
+function renderEditorTags() {
+  const entry = _mappings[_editorPhotoId];
+  const tagIds = entry?.tagIds ?? [];
+  const wrap = $('#editor-tags');
+  clear(wrap);
+  if (tagIds.length === 0) {
+    wrap.appendChild(el('span', { class: 'editor-tags__empty', text: 'タグなし' }));
+    return;
+  }
+  for (const tid of tagIds) {
+    const tag = _tags.find(t => t.id === tid);
+    if (!tag) continue;
+    const chip = el('span', { class: 'editor-chip' });
+    chip.appendChild(el('span', { text: tag.name }));
+    const rm = el('button', { class: 'editor-chip__remove', type: 'button', 'aria-label': `${tag.name} を外す`, text: '×' });
+    rm.addEventListener('click', async () => {
+      rm.disabled = true;
+      try {
+        await removeTagFromPhotoPWA(_editorPhotoId, tag.id);
+        renderEditorTags();
+      } catch (err) {
+        toast('外せませんでした: ' + err.message, 'error');
+        rm.disabled = false;
+      }
+    });
+    chip.appendChild(rm);
+    wrap.appendChild(chip);
+  }
+}
+
+function closeEditor() {
+  $('#editor').hidden = true;
+  _editorPhotoId = null;
+  // 一覧・検索結果を最新の状態に更新
+  if (!$('#state-photos').hidden) renderPhotoGrid();
+  if (!$('#state-tags').hidden) runSearch($('#search').value);
+}
+
+// 編集モーダルの配線
+$('#editor-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $('#editor-input');
+  const name = input.value.trim();
+  if (!name || !_editorPhotoId) return;
+  const submit = $('#editor-add');
+  submit.disabled = true;
+  try {
+    await addTagToPhotoPWA(_editorPhotoId, name);
+    input.value = '';
+    renderEditorTags();
+  } catch (err) {
+    toast('追加できませんでした: ' + err.message, 'error');
+  } finally {
+    submit.disabled = false;
+    input.focus();
+  }
+});
+$('#editor-close').addEventListener('click', closeEditor);
+$('#editor').addEventListener('click', (e) => {
+  if (e.target === $('#editor')) closeEditor(); // 背景タップで閉じる
+});
 
 // ---- ボタン配線 ---------------------------------------------------------
 $('#signin-btn').addEventListener('click', () => requestSignInInteractive());

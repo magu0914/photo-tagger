@@ -102,6 +102,21 @@
     </section>
   </main>
 
+  <!-- タグ編集モーダル -->
+  <div id="editor" class="editor" hidden>
+    <div class="editor-card">
+      <button id="editor-close" class="editor-close" type="button" aria-label="閉じる">×</button>
+      <div id="editor-thumb" class="editor-thumb"></div>
+      <div class="editor-section-label">タグ</div>
+      <div id="editor-tags" class="editor-tags"></div>
+      <form id="editor-form" class="editor-form">
+        <input id="editor-input" class="editor-input" type="text" placeholder="タグを追加…" maxlength="64" autocomplete="off">
+        <button id="editor-add" class="editor-add" type="submit">追加</button>
+      </form>
+      <a id="editor-open" class="editor-open" href="#" target="_blank" rel="noopener">Google フォトで開く ↗</a>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <footer class="footer">
