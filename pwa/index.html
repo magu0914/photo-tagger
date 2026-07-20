@@ -52,44 +52,29 @@
       </div>
     </section>
 
-    <!-- タグ一覧（デフォルト） -->
+    <!-- メイン画面：全メディア一覧 + 検索 -->
     <section id="state-tags" class="state" hidden>
       <div class="search-row">
-        <input id="search" type="search" placeholder="タグで検索（スペース区切りで絞り込み）…" autocomplete="off">
+        <input id="search" type="search" placeholder="検索：スペースで絞り込み / -タグ で除外" autocomplete="off">
       </div>
-      <div class="tag-meta" id="tag-meta"></div>
-      <div class="tag-grid" id="tag-grid"></div>
-      <!-- 複数タグ AND 検索の結果 -->
-      <div class="search-result" id="search-result" hidden>
-        <div class="media-seg" id="search-media-seg">
+      <div class="main-controls">
+        <div class="media-seg" id="main-media-seg">
           <button type="button" class="media-seg__btn media-seg__btn--active" data-media="all">すべて</button>
           <button type="button" class="media-seg__btn" data-media="photo">画像</button>
           <button type="button" class="media-seg__btn" data-media="video">動画</button>
+          <button type="button" class="media-seg__btn" data-media="gif">GIF</button>
         </div>
-        <div class="photo-grid" id="search-grid"></div>
+        <div class="main-controls__right">
+          <button id="open-tag-picker" class="ctrl-btn" type="button">🏷 タグ</button>
+          <button id="toggle-select" class="ctrl-btn" type="button">選択</button>
+        </div>
       </div>
+      <div class="tag-meta" id="tag-meta"></div>
+      <div class="photo-grid" id="main-grid"></div>
       <div class="empty-msg" id="tag-empty" hidden>
-        <p>まだタグがありません。</p>
+        <p>まだタグの付いた写真がありません。</p>
         <p class="muted">PC で Chrome 拡張機能から写真にタグを付けると、ここに表示されます。</p>
       </div>
-    </section>
-
-    <!-- 特定タグの写真グリッド -->
-    <section id="state-photos" class="state" hidden>
-      <div class="photos-header">
-        <button id="back-btn" class="back-btn" aria-label="戻る">←</button>
-        <div class="photos-title">
-          <span class="photos-title__name" id="photos-title-name"></span>
-          <span class="photos-title__count" id="photos-title-count"></span>
-        </div>
-      </div>
-      <div class="media-seg" id="media-seg">
-        <button type="button" class="media-seg__btn media-seg__btn--active" data-media="all">すべて</button>
-        <button type="button" class="media-seg__btn" data-media="photo">画像</button>
-        <button type="button" class="media-seg__btn" data-media="video">動画</button>
-      </div>
-      <div class="photos-note" id="photos-note" hidden></div>
-      <div class="photo-grid" id="photo-grid"></div>
     </section>
 
     <!-- エラー -->
@@ -101,6 +86,29 @@
       </div>
     </section>
   </main>
+
+  <!-- タグ選択メニュー -->
+  <div id="tag-picker" class="tag-picker" hidden>
+    <div class="tag-picker__card">
+      <div class="tag-picker__head">
+        <span>タグを選ぶ</span>
+        <button id="tag-picker-close" class="tag-picker__close" type="button" aria-label="閉じる">×</button>
+      </div>
+      <input id="tag-picker-search" class="tag-picker__search" type="search" placeholder="タグ名で絞り込み…" autocomplete="off">
+      <p class="tag-picker__hint">タップで検索に追加。長押しで「除外（-）」に追加。</p>
+      <div id="tag-picker-list" class="tag-picker__list"></div>
+    </div>
+  </div>
+
+  <!-- 一括タグ付けバー -->
+  <div id="bulk-bar" class="bulk-bar" hidden>
+    <span id="bulk-count" class="bulk-bar__count">0 件選択</span>
+    <form id="bulk-form" class="bulk-bar__form">
+      <input id="bulk-input" class="bulk-bar__input" type="text" placeholder="タグを付ける…" maxlength="64" autocomplete="off">
+      <button id="bulk-add" class="bulk-bar__add" type="submit">付ける</button>
+    </form>
+    <button id="bulk-cancel" class="bulk-bar__cancel" type="button">やめる</button>
+  </div>
 
   <!-- タグ編集モーダル -->
   <div id="editor" class="editor" hidden>

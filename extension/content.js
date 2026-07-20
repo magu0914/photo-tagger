@@ -74,11 +74,16 @@
   let _filterMode = 'and';           // 'and' = すべてのタグを含む / 'or' = いずれかを含む
   let _mediaFilter = 'all';          // 'all' | 'photo' | 'video'
 
-  // DOM のアンカーから写真か動画かを判定する（動画は aria-label に「動画」を含むか、
-  // 再生時間バッジ（分:秒）を持つ）
+  // DOM のアンカーから写真 / 動画 / GIF を判定する。
+  //   GIF：aria-label や中のテキストに「GIF」「アニメーション」を含む（ベストエフォート）
+  //   動画：aria-label に「動画」、または再生時間バッジ（分:秒）を持つ
+  //   それ以外：写真
   function anchorMediaType(anchor) {
     const aria = anchor.getAttribute('aria-label') || '';
-    if (aria.includes('動画') || /\d+:\d{2}/.test(anchor.textContent || '')) return 'video';
+    const text = anchor.textContent || '';
+    const blob = aria + ' ' + text;
+    if (/gif|アニメーション/i.test(blob)) return 'gif';
+    if (aria.includes('動画') || /\d+:\d{2}/.test(text)) return 'video';
     return 'photo';
   }
 
@@ -725,7 +730,7 @@
   // メディア種別セグメント（すべて / 画像 / 動画）
   function buildMediaSegment() {
     const row = el('div', { class: 'gpt-media-seg' });
-    const opts = [['all', 'すべて'], ['photo', '画像'], ['video', '動画']];
+    const opts = [['all', 'すべて'], ['photo', '画像'], ['video', '動画'], ['gif', 'GIF']];
     for (const [val, label] of opts) {
       const btn = el('button', {
         class: 'gpt-media-seg__btn' + (_mediaFilter === val ? ' gpt-media-seg__btn--active' : ''),

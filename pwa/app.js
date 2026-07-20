@@ -304,13 +304,12 @@ async function refresh() {
   try {
     showState('loading');
     await loadIndex();
-    if (_tags.length === 0) {
-      renderTagList();
+    if (Object.keys(_mappings).length === 0) {
+      $('#main-grid') && clear($('#main-grid'));
       $('#tag-empty').hidden = false;
     } else {
       $('#tag-empty').hidden = true;
-      // 検索ボックスに文字があればその検索結果を、無ければ通常のタグ一覧を表示
-      runSearch($('#search')?.value ?? '');
+      renderMain();
     }
     showState('tags');
   } catch (err) {
@@ -392,175 +391,210 @@ function renderUserMenu(info) {
   document.addEventListener('click', () => { menu.hidden = true; });
 }
 
-// ---- タグ一覧描画 ------------------------------------------------------
-function renderTagList(searchQuery = '') {
-  const grid = $('#tag-grid');
-  clear(grid);
-  // 0 件のタグ（どの写真にも付いていない空タグ）は表示しない
-  const filtered = _tags
-    .map(t => ({ ...t, count: _tagCounts[t.id] ?? 0 }))
-    .filter(t => t.count > 0)
-    .filter(t => !searchQuery || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja'));
+// ============================================================================
+// メイン画面：全メディア一覧 + 高度な検索 + 一括タグ付け
+// ============================================================================
 
-  for (const t of filtered) {
-    const card = el('button', {
-      class: 'tag-card', type: 'button',
-      onclick: () => showPhotosForTag(t.id),
-    });
-    card.appendChild(el('div', { class: 'tag-card__name', text: t.name }));
-    card.appendChild(el('div', { class: 'tag-card__count', text: `${t.count} 件` }));
-    grid.appendChild(card);
+let _mediaFilter = 'all';      // 'all' | 'photo' | 'video' | 'gif'
+let _selectMode = false;
+const _selectedIds = new Set();
+
+// 互換用（refresh から呼ばれる）
+function renderTagList() { renderMain(); }
+
+// ---- 検索クエリの解析 ---------------------------------------------------
+// スペース区切りで各語を AND。先頭が「-」の語は除外条件。
+function parseQuery(q) {
+  const tokens = (q || '').trim().split(/[\s　]+/).filter(Boolean);
+  const include = [], exclude = [];
+  for (const tok of tokens) {
+    if ((tok.startsWith('-') || tok.startsWith('－')) && tok.length > 1) {
+      exclude.push(tok.slice(1).toLowerCase());
+    } else {
+      include.push(tok.toLowerCase());
+    }
   }
-  const shownTags = _tags.filter(t => (_tagCounts[t.id] ?? 0) > 0).length;
-  $('#tag-meta').textContent = `${shownTags} タグ / ${Object.keys(_mappings).length} 写真`;
+  return { include, exclude };
 }
-
-// ---- 検索（複数タグ AND） ----------------------------------------------
-// 検索ボックスにスペース区切りで語を入れると、
-// 「各語にマッチするタグをすべて備えた写真」だけを表示する。
-let _searchMediaFilter = 'all';
-
-function runSearch(query) {
-  const terms = query.trim().split(/[\s　]+/).filter(Boolean); // 半角/全角スペース区切り
-  const tagGrid = $('#tag-grid');
-  const tagMeta = $('#tag-meta');
-  const searchResult = $('#search-result');
-
-  if (terms.length === 0) {
-    // 検索なし → 通常のタグ一覧
-    searchResult.hidden = true;
-    tagGrid.hidden = false;
-    tagMeta.hidden = false;
-    renderTagList('');
-    return;
+function tagIdsMatchingTerm(term) {
+  return new Set(_tags.filter(t => t.name.toLowerCase().includes(term)).map(t => t.id));
+}
+function entryMatchesQuery(entry, include, exclude) {
+  const tagIds = entry.tagIds ?? [];
+  for (const term of include) {
+    const set = tagIdsMatchingTerm(term);
+    if (!tagIds.some(id => set.has(id))) return false;
   }
+  for (const term of exclude) {
+    const set = tagIdsMatchingTerm(term);
+    if (tagIds.some(id => set.has(id))) return false;
+  }
+  return true;
+}
+function mediaOf(entry) { return entry.meta?.mediaType ?? 'photo'; }
 
-  // 各語 → その語を名前に含むタグ ID の集合
-  const termTagSets = terms.map(term => {
-    const lower = term.toLowerCase();
-    const ids = _tags.filter(t => t.name.toLowerCase().includes(lower)).map(t => t.id);
-    return new Set(ids);
-  });
+// ---- メイン描画 ---------------------------------------------------------
+function renderMain() {
+  const query = $('#search')?.value ?? '';
+  const { include, exclude } = parseQuery(query);
 
-  // 写真が全語を満たすか：各語について、写真のタグのいずれかがその語のタグ集合に含まれる
   let items = Object.entries(_mappings)
-    .filter(([_, entry]) => {
-      const tagIds = entry.tagIds ?? [];
-      return termTagSets.every(set => tagIds.some(id => set.has(id)));
-    })
-    .map(([id, entry]) => ({ id, ...entry }));
-
-  // メディア種別フィルター
-  if (_searchMediaFilter !== 'all') {
-    items = items.filter(i => (i.meta?.mediaType ?? 'photo') === _searchMediaFilter);
-  }
+    .map(([id, entry]) => ({ id, ...entry }))
+    .filter(item => (_mediaFilter === 'all' || mediaOf(item) === _mediaFilter))
+    .filter(item => entryMatchesQuery(item, include, exclude));
 
   items.sort((a, b) => (b.meta?.creationTime ?? '').localeCompare(a.meta?.creationTime ?? ''));
 
-  // 表示切り替え：タグ一覧を隠して検索結果グリッドを出す
-  tagGrid.hidden = true;
-  tagMeta.hidden = false;
-  tagMeta.textContent = `「${terms.join(' + ')}」 の検索結果：${items.length} 件`;
-  searchResult.hidden = false;
+  // メタ表示
+  const meta = $('#tag-meta');
+  const total = Object.keys(_mappings).length;
+  if (include.length === 0 && exclude.length === 0 && _mediaFilter === 'all') {
+    meta.textContent = `全 ${total} 件`;
+  } else {
+    const parts = [];
+    if (include.length) parts.push(include.join(' + '));
+    if (exclude.length) parts.push(exclude.map(e => '除外:' + e).join(' '));
+    if (_mediaFilter !== 'all') parts.push({ photo: '画像', video: '動画', gif: 'GIF' }[_mediaFilter]);
+    meta.textContent = `${parts.join(' / ')} → ${items.length} 件`;
+  }
 
-  const grid = $('#search-grid');
+  const grid = $('#main-grid');
   clear(grid);
   if (items.length === 0) {
-    grid.appendChild(el('div', { class: 'empty-msg', text: '条件に合う写真がありません' }));
+    grid.appendChild(el('div', { class: 'empty-msg', text: '条件に合うものがありません' }));
   } else {
     for (const item of items) grid.appendChild(buildPhotoCell(item));
   }
+  updateBulkBar();
 }
 
-$('#search').addEventListener('input', (e) => {
-  runSearch(e.target.value);
-});
+// 検索は runSearch 名でも呼べるように（refresh 互換）
+function runSearch() { renderMain(); }
 
-// 検索結果のメディア種別セグメント
-$$('#search-media-seg .media-seg__btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    _searchMediaFilter = btn.getAttribute('data-media');
-    $$('#search-media-seg .media-seg__btn').forEach(b => b.classList.remove('media-seg__btn--active'));
-    btn.classList.add('media-seg__btn--active');
-    runSearch($('#search').value);
-  });
-});
+$('#search').addEventListener('input', renderMain);
 
-// ---- タグ別写真グリッド ------------------------------------------------
-let _currentTagId = null;
-let _mediaFilter = 'all'; // 'all' | 'photo' | 'video'
-
-function showPhotosForTag(tagId) {
-  const tag = _tags.find(t => t.id === tagId);
-  if (!tag) return;
-  _currentTagId = tagId;
-  $('#photos-title-name').textContent = tag.name;
-  renderPhotoGrid();
-  showState('photos');
-  history.pushState({ view: 'photos', tagId }, '', `#tag/${encodeURIComponent(tag.name)}`);
-}
-
-function renderPhotoGrid() {
-  const tag = _tags.find(t => t.id === _currentTagId);
-  if (!tag) return;
-  let items = Object.entries(_mappings)
-    .filter(([_, entry]) => entry.tagIds.includes(_currentTagId))
-    .map(([id, entry]) => ({ id, ...entry }));
-
-  // メディア種別フィルター（mediaType 未取得のものは photo 扱い）
-  if (_mediaFilter !== 'all') {
-    items = items.filter(i => (i.meta?.mediaType ?? 'photo') === _mediaFilter);
-  }
-
-  items.sort((a, b) => (b.meta?.creationTime ?? '').localeCompare(a.meta?.creationTime ?? ''));
-
-  $('#photos-title-count').textContent = `${items.length} 件`;
-
-  const noDataCount = items.filter(i => !i.meta?.thumbnailData).length;
-  const noteEl = $('#photos-note');
-  if (noDataCount > 0) {
-    noteEl.textContent = `※ ${noDataCount} 件はサムネイル未取得。PC で Google フォトを開いて該当写真の表示エリアまでスクロールすると自動キャッシュされます。`;
-    noteEl.hidden = false;
-  } else {
-    noteEl.hidden = true;
-  }
-
-  const grid = $('#photo-grid');
-  clear(grid);
-  if (items.length === 0) {
-    grid.appendChild(el('div', { class: 'empty-msg', text: 'この条件の写真はありません' }));
-  } else {
-    for (const item of items) grid.appendChild(buildPhotoCell(item));
-  }
-}
-
-// メディア種別セグメントの配線
-$$('#media-seg .media-seg__btn').forEach(btn => {
+// ---- メディア種別セグメント ---------------------------------------------
+$$('#main-media-seg .media-seg__btn').forEach(btn => {
   btn.addEventListener('click', () => {
     _mediaFilter = btn.getAttribute('data-media');
-    $$('#media-seg .media-seg__btn').forEach(b => b.classList.remove('media-seg__btn--active'));
+    $$('#main-media-seg .media-seg__btn').forEach(b => b.classList.remove('media-seg__btn--active'));
     btn.classList.add('media-seg__btn--active');
-    renderPhotoGrid();
+    renderMain();
   });
 });
 
-function buildPhotoCell(item) {
-  // タップでタグ編集モーダルを開く
-  const cell = el('button', {
-    class: 'photo-cell',
-    type: 'button',
-    'aria-label': 'タグを編集',
-    onclick: () => openPhotoEditor(item),
-  });
-  let imgSrc = null;
-  let isInline = false;
-  if (item.meta?.thumbnailData) {
-    imgSrc = item.meta.thumbnailData;
-    isInline = true;
-  } else if (item.meta?.thumbnailUrl) {
-    imgSrc = normalizeThumbUrl(item.meta.thumbnailUrl, 320);
+// ---- タグ選択メニュー ---------------------------------------------------
+function openTagPicker() {
+  $('#tag-picker').hidden = false;
+  $('#tag-picker-search').value = '';
+  renderTagPickerList('');
+  setTimeout(() => $('#tag-picker-search').focus(), 50);
+}
+function closeTagPicker() { $('#tag-picker').hidden = true; }
+
+function renderTagPickerList(filter) {
+  const list = $('#tag-picker-list');
+  clear(list);
+  const f = (filter || '').toLowerCase();
+  const tags = _tags
+    .map(t => ({ ...t, count: _tagCounts[t.id] ?? 0 }))
+    .filter(t => t.count > 0)
+    .filter(t => !f || t.name.toLowerCase().includes(f))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja'));
+  if (tags.length === 0) {
+    list.appendChild(el('div', { class: 'tag-picker__empty', text: 'タグがありません' }));
+    return;
   }
+  for (const t of tags) {
+    const row = el('button', { class: 'tag-picker__item', type: 'button' });
+    row.appendChild(el('span', { class: 'tag-picker__name', text: t.name }));
+    row.appendChild(el('span', { class: 'tag-picker__count', text: `${t.count}` }));
+    // タップ = 検索に追加、長押し = 除外に追加
+    let pressTimer = null, longPressed = false;
+    const addTerm = (prefix) => {
+      const cur = $('#search').value.trim();
+      $('#search').value = (cur ? cur + ' ' : '') + prefix + t.name;
+      closeTagPicker();
+      renderMain();
+    };
+    row.addEventListener('click', () => { if (!longPressed) addTerm(''); longPressed = false; });
+    row.addEventListener('pointerdown', () => {
+      longPressed = false;
+      pressTimer = setTimeout(() => { longPressed = true; addTerm('-'); }, 500);
+    });
+    const cancelPress = () => { if (pressTimer) clearTimeout(pressTimer); };
+    row.addEventListener('pointerup', cancelPress);
+    row.addEventListener('pointerleave', cancelPress);
+    list.appendChild(row);
+  }
+}
+$('#open-tag-picker').addEventListener('click', openTagPicker);
+$('#tag-picker-close').addEventListener('click', closeTagPicker);
+$('#tag-picker').addEventListener('click', (e) => { if (e.target === $('#tag-picker')) closeTagPicker(); });
+$('#tag-picker-search').addEventListener('input', (e) => renderTagPickerList(e.target.value));
+
+// ---- 一括選択モード -----------------------------------------------------
+function toggleSelectMode() {
+  _selectMode = !_selectMode;
+  _selectedIds.clear();
+  $('#toggle-select').textContent = _selectMode ? '選択解除' : '選択';
+  $('#toggle-select').classList.toggle('ctrl-btn--active', _selectMode);
+  renderMain();
+}
+function toggleSelectItem(id) {
+  if (_selectedIds.has(id)) _selectedIds.delete(id);
+  else _selectedIds.add(id);
+  updateBulkBar();
+  // セルの見た目更新
+  const cell = document.querySelector(`.photo-cell[data-id="${id}"]`);
+  if (cell) cell.classList.toggle('photo-cell--selected', _selectedIds.has(id));
+}
+function updateBulkBar() {
+  const bar = $('#bulk-bar');
+  if (_selectMode) {
+    bar.hidden = false;
+    $('#bulk-count').textContent = `${_selectedIds.size} 件選択`;
+  } else {
+    bar.hidden = true;
+  }
+}
+$('#toggle-select').addEventListener('click', toggleSelectMode);
+$('#bulk-cancel').addEventListener('click', () => { if (_selectMode) toggleSelectMode(); });
+$('#bulk-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('#bulk-input').value.trim();
+  if (!name || _selectedIds.size === 0) return;
+  const btn = $('#bulk-add');
+  btn.disabled = true;
+  try {
+    await bulkAddTagPWA(Array.from(_selectedIds), name);
+    $('#bulk-input').value = '';
+    toast(`${_selectedIds.size} 件に「${name}」を付けました`, 'success');
+    _selectedIds.clear();
+    renderMain();
+  } catch (err) {
+    toast('失敗: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- 写真セル -----------------------------------------------------------
+function buildPhotoCell(item) {
+  const cell = el('button', {
+    class: 'photo-cell', type: 'button', 'aria-label': 'タグを編集',
+    'data-id': item.id,
+    onclick: () => {
+      if (_selectMode) toggleSelectItem(item.id);
+      else openPhotoEditor(item);
+    },
+  });
+  if (_selectMode && _selectedIds.has(item.id)) cell.classList.add('photo-cell--selected');
+
+  let imgSrc = null, isInline = false;
+  if (item.meta?.thumbnailData) { imgSrc = item.meta.thumbnailData; isInline = true; }
+  else if (item.meta?.thumbnailUrl) { imgSrc = normalizeThumbUrl(item.meta.thumbnailUrl, 320); }
+
   if (imgSrc) {
     const img = el('img', { src: imgSrc, alt: '', loading: 'lazy' });
     if (!isInline) img.setAttribute('referrerpolicy', 'no-referrer');
@@ -574,21 +608,22 @@ function buildPhotoCell(item) {
     cell.appendChild(el('div', { class: 'photo-cell__placeholder', text: '🖼' }));
     cell.classList.add('photo-cell--no-thumb');
   }
-  if (item.meta?.creationTime) {
-    cell.appendChild(el('div', {
-      class: 'photo-cell__overlay',
-      text: item.meta.creationTime.split('T')[0],
-    }));
+  // 動画/GIF バッジ
+  const mt = mediaOf(item);
+  if (mt === 'video' || mt === 'gif') {
+    cell.appendChild(el('div', { class: 'photo-cell__type', text: mt === 'gif' ? 'GIF' : '▶' }));
   }
+  if (item.meta?.creationTime) {
+    cell.appendChild(el('div', { class: 'photo-cell__overlay', text: item.meta.creationTime.split('T')[0] }));
+  }
+  // 選択チェック
+  cell.appendChild(el('div', { class: 'photo-cell__check', text: '✓' }));
   return cell;
 }
 function normalizeThumbUrl(url, size = 320) {
   if (!url) return null;
   return url.replace(/=w\d+-h\d+(-no)?/, `=w${size}-h${size}-no`);
 }
-
-$('#back-btn').addEventListener('click', () => { history.back(); });
-window.addEventListener('popstate', () => { showState('tags'); });
 
 // ============================================================================
 // タグ編集（既存写真へのタグ追加・削除）
@@ -673,6 +708,29 @@ async function addTagToPhotoPWA(photoId, tagName) {
   return tag;
 }
 
+// 複数写真に同じタグを一括付与（保存は 1 回だけ）
+async function bulkAddTagPWA(photoIds, tagName) {
+  const trimmed = tagName.trim();
+  if (!trimmed || photoIds.length === 0) return;
+  let tag = _tags.find(t => t.name === trimmed);
+  if (!tag) {
+    tag = { id: newTagId(), name: trimmed, color: null, createdAt: new Date().toISOString() };
+    _tags.push(tag);
+    _tagsDirty = true;
+  }
+  for (const photoId of photoIds) {
+    const entry = _mappings[photoId];
+    if (!entry) continue;
+    if (!entry.tagIds.includes(tag.id)) {
+      entry.tagIds.push(tag.id);
+      entry.updatedAt = new Date().toISOString();
+    }
+  }
+  recomputeCounts();
+  await persistChanges();
+  return tag;
+}
+
 // 写真からタグを外す（空になったタグは自動削除）
 async function removeTagFromPhotoPWA(photoId, tagId) {
   const entry = _mappings[photoId];
@@ -751,9 +809,8 @@ function renderEditorTags() {
 function closeEditor() {
   $('#editor').hidden = true;
   _editorPhotoId = null;
-  // 一覧・検索結果を最新の状態に更新
-  if (!$('#state-photos').hidden) renderPhotoGrid();
-  if (!$('#state-tags').hidden) runSearch($('#search').value);
+  // メイン一覧を最新の状態に更新
+  renderMain();
 }
 
 // 編集モーダルの配線
