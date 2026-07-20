@@ -309,7 +309,8 @@ async function refresh() {
       $('#tag-empty').hidden = false;
     } else {
       $('#tag-empty').hidden = true;
-      renderTagList();
+      // 検索ボックスに文字があればその検索結果を、無ければ通常のタグ一覧を表示
+      runSearch($('#search')?.value ?? '');
     }
     showState('tags');
   } catch (err) {
@@ -415,8 +416,75 @@ function renderTagList(searchQuery = '') {
   $('#tag-meta').textContent = `${shownTags} タグ / ${Object.keys(_mappings).length} 写真`;
 }
 
+// ---- 検索（複数タグ AND） ----------------------------------------------
+// 検索ボックスにスペース区切りで語を入れると、
+// 「各語にマッチするタグをすべて備えた写真」だけを表示する。
+let _searchMediaFilter = 'all';
+
+function runSearch(query) {
+  const terms = query.trim().split(/[\s　]+/).filter(Boolean); // 半角/全角スペース区切り
+  const tagGrid = $('#tag-grid');
+  const tagMeta = $('#tag-meta');
+  const searchResult = $('#search-result');
+
+  if (terms.length === 0) {
+    // 検索なし → 通常のタグ一覧
+    searchResult.hidden = true;
+    tagGrid.hidden = false;
+    tagMeta.hidden = false;
+    renderTagList('');
+    return;
+  }
+
+  // 各語 → その語を名前に含むタグ ID の集合
+  const termTagSets = terms.map(term => {
+    const lower = term.toLowerCase();
+    const ids = _tags.filter(t => t.name.toLowerCase().includes(lower)).map(t => t.id);
+    return new Set(ids);
+  });
+
+  // 写真が全語を満たすか：各語について、写真のタグのいずれかがその語のタグ集合に含まれる
+  let items = Object.entries(_mappings)
+    .filter(([_, entry]) => {
+      const tagIds = entry.tagIds ?? [];
+      return termTagSets.every(set => tagIds.some(id => set.has(id)));
+    })
+    .map(([id, entry]) => ({ id, ...entry }));
+
+  // メディア種別フィルター
+  if (_searchMediaFilter !== 'all') {
+    items = items.filter(i => (i.meta?.mediaType ?? 'photo') === _searchMediaFilter);
+  }
+
+  items.sort((a, b) => (b.meta?.creationTime ?? '').localeCompare(a.meta?.creationTime ?? ''));
+
+  // 表示切り替え：タグ一覧を隠して検索結果グリッドを出す
+  tagGrid.hidden = true;
+  tagMeta.hidden = false;
+  tagMeta.textContent = `「${terms.join(' + ')}」 の検索結果：${items.length} 件`;
+  searchResult.hidden = false;
+
+  const grid = $('#search-grid');
+  clear(grid);
+  if (items.length === 0) {
+    grid.appendChild(el('div', { class: 'empty-msg', text: '条件に合う写真がありません' }));
+  } else {
+    for (const item of items) grid.appendChild(buildPhotoCell(item));
+  }
+}
+
 $('#search').addEventListener('input', (e) => {
-  renderTagList(e.target.value);
+  runSearch(e.target.value);
+});
+
+// 検索結果のメディア種別セグメント
+$$('#search-media-seg .media-seg__btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _searchMediaFilter = btn.getAttribute('data-media');
+    $$('#search-media-seg .media-seg__btn').forEach(b => b.classList.remove('media-seg__btn--active'));
+    btn.classList.add('media-seg__btn--active');
+    runSearch($('#search').value);
+  });
 });
 
 // ---- タグ別写真グリッド ------------------------------------------------

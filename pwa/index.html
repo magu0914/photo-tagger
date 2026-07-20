@@ -55,10 +55,19 @@
     <!-- タグ一覧（デフォルト） -->
     <section id="state-tags" class="state" hidden>
       <div class="search-row">
-        <input id="search" type="search" placeholder="タグ名で検索…" autocomplete="off">
+        <input id="search" type="search" placeholder="タグで検索（スペース区切りで絞り込み）…" autocomplete="off">
       </div>
       <div class="tag-meta" id="tag-meta"></div>
       <div class="tag-grid" id="tag-grid"></div>
+      <!-- 複数タグ AND 検索の結果 -->
+      <div class="search-result" id="search-result" hidden>
+        <div class="media-seg" id="search-media-seg">
+          <button type="button" class="media-seg__btn media-seg__btn--active" data-media="all">すべて</button>
+          <button type="button" class="media-seg__btn" data-media="photo">画像</button>
+          <button type="button" class="media-seg__btn" data-media="video">動画</button>
+        </div>
+        <div class="photo-grid" id="search-grid"></div>
+      </div>
       <div class="empty-msg" id="tag-empty" hidden>
         <p>まだタグがありません。</p>
         <p class="muted">PC で Chrome 拡張機能から写真にタグを付けると、ここに表示されます。</p>

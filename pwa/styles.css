@@ -361,6 +361,14 @@ main { padding: 16px; max-width: 960px; margin: 0 auto; }
   margin-bottom: 12px;
 }
 
+/* ---- 検索結果 ---- */
+.search-result {
+  margin-top: 8px;
+}
+.search-result .media-seg {
+  margin-bottom: 12px;
+}
+
 /* ---- メディア種別セグメント ---- */
 .media-seg {
   display: inline-flex;
