@@ -10,7 +10,7 @@
 //   ブラウザから返却するときは「同一オリジンの SW が出力したレスポンス」として扱われる。
 //   これによって CORP の制限を実質的に回避できる。
 
-const CACHE_NAME = 'pt-shell-v14';
+const CACHE_NAME = 'pt-shell-v15';
 const SHELL = [
   './',
   './index.html',
@@ -47,19 +47,24 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // 1) 自オリジン（PWA）のリソース：通常通りキャッシュ戦略
+  // 1) 自オリジン（PWA）のリソース：ネットワーク優先
+  //    オンラインなら常に最新を取得してキャッシュも更新。
+  //    ネットワークが使えないときだけキャッシュにフォールバックする。
+  //    これにより「古いコードがキャッシュに残り続ける」問題を防ぐ。
   if (url.origin === location.origin) {
     event.respondWith(
-      caches.match(req).then(cached => {
-        if (cached) return cached;
-        return fetch(req).then(res => {
-          if (res.ok && SHELL.includes('./' + url.pathname.split('/').pop())) {
+      fetch(req)
+        .then(res => {
+          if (res.ok) {
             const copy = res.clone();
             caches.open(CACHE_NAME).then(c => c.put(req, copy));
           }
           return res;
-        });
-      })
+        })
+        .catch(async () => {
+          const cached = await caches.match(req);
+          return cached || caches.match('./index.html');
+        })
     );
     return;
   }
