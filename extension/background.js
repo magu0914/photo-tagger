@@ -151,24 +151,32 @@ async function loadMappings() {
   return cache.mappings;
 }
 
-// ---- debounce 書き込み ------------------------------------------------------
-const writeTimers = { tags: null, mappings: null };
-const writePromises = { tags: null, mappings: null };
+// ---- 書き込み（即時＋直列化） ----------------------------------------------
+// Manifest V3 の Service Worker は処理が一段落すると数秒で停止する。
+// 以前は setTimeout(400ms) の遅延書き込み（投げっぱなし）だったため、
+// 保存前に SW が停止するとタグが Drive に書かれず消えることがあった。
+// 対策：書き込みを即時に開始し、前の書き込みの後に直列で実行して Promise を保持。
+// メッセージ応答の直前に flushWrites() で完了を待つことで、
+// SW が生存したまま確実に保存されるようにする。
+const writeQueues = { tags: Promise.resolve(), mappings: Promise.resolve() };
 
 function scheduleWrite(which) {
-  if (writeTimers[which]) clearTimeout(writeTimers[which]);
-  writeTimers[which] = setTimeout(async () => {
-    writeTimers[which] = null;
+  const run = async () => {
     const data = which === 'tags' ? cache.tags : cache.mappings;
     if (!data) return;
     data.updatedAt = new Date().toISOString();
-    try {
-      const result = await writeJson(FILES[which], data);
-      console.log(`[GPT bg] ${which} saved`, result.modifiedTime);
-    } catch (e) {
-      console.error(`[GPT bg] ${which} save failed`, e);
-    }
-  }, 400);
+    const result = await writeJson(FILES[which], data);
+    console.log(`[GPT bg] ${which} saved`, result.modifiedTime);
+  };
+  // 前の書き込みの完了後に実行（順序と最新性を保証）
+  const p = writeQueues[which].then(run, run);
+  writeQueues[which] = p.catch(() => {}); // チェーンは壊さない
+  return p; // この呼び出し分の完了 Promise（エラーも伝わる）
+}
+
+// 進行中の全書き込みの完了を待つ
+async function flushWrites() {
+  await Promise.allSettled([writeQueues.tags, writeQueues.mappings]);
 }
 
 // ---- API 関数 ---------------------------------------------------------------
@@ -454,6 +462,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
       const result = await handler(msg.payload ?? {});
+      // 保存が完了するまで待ってから成功を返す（SW 停止による保存漏れを防ぐ）
+      await flushWrites();
       sendResponse({ ok: true, ...result });
     } catch (e) {
       console.error(`[GPT bg] handler ${msg.type} failed`, e);
