@@ -226,6 +226,40 @@ async function addTagToPhoto(photoId, tagId, meta) {
   return entry;
 }
 
+// 1 枚の写真に複数のタグを一度に付ける（保存は tags/mappings 各 1 回）
+async function addTagsToPhoto(photoId, names, meta) {
+  const [tags, mappings] = await Promise.all([loadTags(), loadMappings()]);
+  let entry = mappings.items[photoId];
+  if (!entry) {
+    entry = { tagIds: [], updatedAt: new Date().toISOString(), meta: meta ?? null, libraryApiId: null };
+    mappings.items[photoId] = entry;
+  }
+  const resultTags = [];
+  let tagsChanged = false, mappingsChanged = false;
+  for (const rawName of names) {
+    const name = (rawName || '').trim();
+    if (!name) continue;
+    let tag = tags.tags.find(t => t.name === name);
+    if (!tag) {
+      tag = { id: newTagId(), name, color: null, createdAt: new Date().toISOString() };
+      tags.tags.push(tag);
+      tagsChanged = true;
+    }
+    resultTags.push(tag);
+    if (!entry.tagIds.includes(tag.id)) {
+      entry.tagIds.push(tag.id);
+      mappingsChanged = true;
+    }
+  }
+  if (mappingsChanged) {
+    entry.updatedAt = new Date().toISOString();
+    if (meta) entry.meta = { ...(entry.meta ?? {}), ...meta };
+  }
+  if (tagsChanged) scheduleWrite('tags');
+  if (mappingsChanged || meta) scheduleWrite('mappings');
+  return { tags: resultTags };
+}
+
 async function removeTagFromPhoto(photoId, tagId) {
   const mappings = await loadMappings();
   const entry = mappings.items[photoId];
@@ -392,6 +426,8 @@ const handlers = {
     const entry = await addTagToPhoto(photoId, tag.id, meta);
     return { tag, entry };
   },
+  // 1 枚に複数タグを一度に付ける
+  add_tags_to_photo: async ({ photoId, names, meta }) => await addTagsToPhoto(photoId, names, meta),
   // 一覧画面で全サムネイルにバッジを付ける + ギャラリー描画のための一括取得
   get_index: async () => {
     const [tags, mappings] = await Promise.all([loadTags(), loadMappings()]);

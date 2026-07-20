@@ -562,23 +562,21 @@ function updateBulkBar() {
 }
 $('#toggle-select').addEventListener('click', toggleSelectMode);
 $('#bulk-cancel').addEventListener('click', () => { if (_selectMode) toggleSelectMode(); });
-$('#bulk-form').addEventListener('submit', async (e) => {
+$('#bulk-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const name = $('#bulk-input').value.trim();
-  if (!name || _selectedIds.size === 0) return;
-  const btn = $('#bulk-add');
-  btn.disabled = true;
-  try {
-    await bulkAddTagPWA(Array.from(_selectedIds), name);
-    $('#bulk-input').value = '';
-    toast(`${_selectedIds.size} 件に「${name}」を付けました`, 'success');
-    _selectedIds.clear();
-    renderMain();
-  } catch (err) {
-    toast('失敗: ' + err.message, 'error');
-  } finally {
-    btn.disabled = false;
-  }
+  // カンマ区切りで複数タグ対応（スペースは名前の一部）
+  const names = $('#bulk-input').value.split(/[,、]+/).map(s => s.trim()).filter(Boolean);
+  if (names.length === 0 || _selectedIds.size === 0) return;
+  const ids = Array.from(_selectedIds);
+  // 即座にローカル反映
+  for (const id of ids) addTagsLocal(id, names);
+  const count = ids.length;
+  $('#bulk-input').value = '';
+  toast(`${count} 件に ${names.length} 個のタグを付けました`, 'success');
+  _selectedIds.clear();
+  renderMain();
+  // 保存は裏で
+  persistChanges().catch(err => toast('保存に失敗しました: ' + err.message, 'error'));
 });
 
 // ---- 写真セル -----------------------------------------------------------
@@ -793,19 +791,47 @@ function renderEditorTags() {
     const chip = el('span', { class: 'editor-chip' });
     chip.appendChild(el('span', { text: tag.name }));
     const rm = el('button', { class: 'editor-chip__remove', type: 'button', 'aria-label': `${tag.name} を外す`, text: '×' });
-    rm.addEventListener('click', async () => {
-      rm.disabled = true;
-      try {
-        await removeTagFromPhotoPWA(_editorPhotoId, tag.id);
-        renderEditorTags();
-      } catch (err) {
-        toast('外せませんでした: ' + err.message, 'error');
-        rm.disabled = false;
-      }
+    rm.addEventListener('click', () => {
+      // 即座に画面から外し、保存は裏で
+      removeTagLocal(_editorPhotoId, tag.id);
+      renderEditorTags();
+      persistChanges().catch(err => toast('保存に失敗しました: ' + err.message, 'error'));
     });
     chip.appendChild(rm);
     wrap.appendChild(chip);
   }
+}
+
+// ---- ローカル即時更新（保存は別途 persistChanges で裏実行）----
+function addTagsLocal(photoId, names) {
+  const entry = _mappings[photoId];
+  if (!entry) return [];
+  const added = [];
+  for (const raw of names) {
+    const name = (raw || '').trim();
+    if (!name) continue;
+    let tag = _tags.find(t => t.name === name);
+    if (!tag) {
+      tag = { id: newTagId(), name, color: null, createdAt: new Date().toISOString() };
+      _tags.push(tag);
+      _tagsDirty = true;
+    }
+    if (!entry.tagIds.includes(tag.id)) entry.tagIds.push(tag.id);
+    added.push(tag);
+  }
+  entry.updatedAt = new Date().toISOString();
+  recomputeCounts();
+  return added;
+}
+function removeTagLocal(photoId, tagId) {
+  const entry = _mappings[photoId];
+  if (!entry) return;
+  entry.tagIds = entry.tagIds.filter(id => id !== tagId);
+  entry.updatedAt = new Date().toISOString();
+  if (entry.tagIds.length === 0) delete _mappings[photoId];
+  const stillUsed = Object.values(_mappings).some(e => e.tagIds.includes(tagId));
+  if (!stillUsed) { _tags = _tags.filter(t => t.id !== tagId); _tagsDirty = true; }
+  recomputeCounts();
 }
 
 function closeEditor() {
@@ -816,23 +842,18 @@ function closeEditor() {
 }
 
 // 編集モーダルの配線
-$('#editor-form').addEventListener('submit', async (e) => {
+$('#editor-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const input = $('#editor-input');
-  const name = input.value.trim();
-  if (!name || !_editorPhotoId) return;
-  const submit = $('#editor-add');
-  submit.disabled = true;
-  try {
-    await addTagToPhotoPWA(_editorPhotoId, name);
-    input.value = '';
-    renderEditorTags();
-  } catch (err) {
-    toast('追加できませんでした: ' + err.message, 'error');
-  } finally {
-    submit.disabled = false;
-    input.focus();
-  }
+  // カンマ（半角 , / 全角 、）だけで分割。スペースはタグ名の一部として残す。
+  const names = input.value.split(/[,、]+/).map(s => s.trim()).filter(Boolean);
+  if (names.length === 0 || !_editorPhotoId) return;
+  // 即座に反映（保存は裏で）
+  addTagsLocal(_editorPhotoId, names);
+  input.value = '';
+  input.focus();
+  renderEditorTags();
+  persistChanges().catch(err => toast('保存に失敗しました: ' + err.message, 'error'));
 });
 $('#editor-close').addEventListener('click', closeEditor);
 $('#editor').addEventListener('click', (e) => {

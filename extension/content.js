@@ -647,43 +647,68 @@
 
     const form = el('form', { class: 'gpt-input-row' });
     const input = el('input', {
-      class: 'gpt-input', type: 'text', placeholder: 'タグを追加…',
-      maxlength: '64', autocomplete: 'off', spellcheck: 'false',
+      class: 'gpt-input', type: 'text', placeholder: 'タグを追加（カンマ , で複数）…',
+      maxlength: '200', autocomplete: 'off', spellcheck: 'false',
     });
     const submit = el('button', { class: 'gpt-add-btn', type: 'submit', text: '追加' });
     form.appendChild(input);
     form.appendChild(submit);
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const name = input.value.trim();
-      if (!name) return;
-      submit.disabled = true;
-      try {
-        const meta = metaForPhoto(photoId);
-        const res = await rpc('add_new_tag_to_photo', { photoId, name, meta });
-        chipsContainer.querySelector('.gpt-chips__loading')?.remove();
-        chipsContainer.querySelector('.gpt-chips__empty')?.remove();
-        const existingNames = Array.from(chipsContainer.querySelectorAll('.gpt-chip__name')).map(n => n.textContent);
-        if (!existingNames.includes(res.tag.name)) {
-          chipsContainer.appendChild(buildTagChip(res.tag, photoId));
-        }
-        applyLocalAdd(photoId, res.tag, meta);
-        refreshBadgeFor(photoId);
-        input.value = '';
-        setStatus(`タグ「${res.tag.name}」を追加しました`, 'success');
+      // カンマ（半角 , / 全角 、）だけで複数タグに分割（スペースはタグ名の一部として残す）
+      const names = input.value
+        .split(/[,、]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (names.length === 0) return;
 
-        // 詳細画面では meta.thumbnailUrl が DOM から拾えない場合がある。
-        // 一覧から飛んできた直後なら拾えるが、直接 URL アクセス時は拾えない。
-        // バックフィル：URL があるなら base64 化、無いなら一覧画面に戻ったタイミングで処理される
-        if (meta?.thumbnailUrl) {
-          maybeBackfillThumbData(photoId, meta.thumbnailUrl);
-        }
-      } catch (err) {
-        setStatus('追加できませんでした: ' + err.message, 'error');
-      } finally {
-        submit.disabled = false;
-        input.focus();
+      const meta = metaForPhoto(photoId);
+      // 既に表示されているタグ名
+      const existingNames = new Set(
+        Array.from(chipsContainer.querySelectorAll('.gpt-chip__name')).map(n => n.textContent)
+      );
+
+      // --- 楽観的更新：即座に画面へ反映（保存は裏で行う）---
+      chipsContainer.querySelector('.gpt-chips__loading')?.remove();
+      chipsContainer.querySelector('.gpt-chips__empty')?.remove();
+      const toAdd = [];
+      for (const name of names) {
+        if (existingNames.has(name)) continue;
+        existingNames.add(name);
+        toAdd.push(name);
+        // 仮のタグオブジェクト（id は保存後に確定するが、表示・ローカルには即反映）
+        const tempTag = { id: 'pending_' + name, name };
+        chipsContainer.appendChild(buildTagChip(tempTag, photoId));
       }
+      input.value = '';
+      input.focus();
+      if (toAdd.length === 0) return;
+      setStatus(`「${toAdd.join('、')}」を追加中…`, 'info');
+
+      // --- 保存は裏で（UI はブロックしない）---
+      rpc('add_tags_to_photo', { photoId, names: toAdd, meta })
+        .then(res => {
+          // 確定したタグでローカルキャッシュを更新
+          for (const tag of (res.tags ?? [])) {
+            applyLocalAdd(photoId, tag, meta);
+          }
+          // 仮タグ（pending_*）を本物のタグに置き換えて再描画（× 削除が正しく効くように）
+          if (extractCurrentPhotoId() === photoId) {
+            const tags = getTagsForPhotoLocal(photoId) ?? [];
+            clear(chipsContainer);
+            if (tags.length === 0) {
+              chipsContainer.appendChild(el('span', { class: 'gpt-chips__empty', text: 'タグなし' }));
+            } else {
+              for (const tag of tags) chipsContainer.appendChild(buildTagChip(tag, photoId));
+            }
+          }
+          refreshBadgeFor(photoId);
+          setStatus(`${toAdd.length} 件のタグを保存しました`, 'success');
+          if (meta?.thumbnailUrl) maybeBackfillThumbData(photoId, meta.thumbnailUrl);
+        })
+        .catch(err => {
+          setStatus('保存に失敗しました: ' + err.message, 'error');
+        });
     });
     body.appendChild(form);
 
