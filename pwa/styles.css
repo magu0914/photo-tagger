@@ -702,6 +702,25 @@ main { padding: 16px; max-width: 960px; margin: 0 auto; }
   min-height: 44px;
 }
 .editor-add:disabled { opacity: 0.5; }
+.editor-open-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.editor-open-app {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.editor-open-app:active { opacity: 0.85; }
 .editor-open {
   display: block;
   text-align: center;

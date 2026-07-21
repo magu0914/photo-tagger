@@ -10,7 +10,7 @@
 //   ブラウザから返却するときは「同一オリジンの SW が出力したレスポンス」として扱われる。
 //   これによって CORP の制限を実質的に回避できる。
 
-const CACHE_NAME = 'pt-shell-v20';
+const CACHE_NAME = 'pt-shell-v21';
 const SHELL = [
   './',
   './index.html',

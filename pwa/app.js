@@ -642,6 +642,19 @@ function openInGooglePhotos(photoId, event) {
   if (!w) location.href = url; // ポップアップブロック時のフォールバック
 }
 
+// Android 用：intent:// で Google フォトアプリを強制起動。
+// 起動できない場合は S.browser_fallback_url で通常の Web に自動で戻る。
+function openInPhotosApp(photoId, event) {
+  if (event) event.preventDefault();
+  const web = `https://photos.google.com/photo/${photoId}`;
+  const intentUrl =
+    `intent://photos.google.com/photo/${photoId}` +
+    `#Intent;scheme=https;package=com.google.android.apps.photos;` +
+    `S.browser_fallback_url=${encodeURIComponent(web)};end`;
+  // location 遷移で intent を実行（PWA スタンドアロンでも比較的通りやすい)
+  location.href = intentUrl;
+}
+
 // ============================================================================
 // タグ編集（既存写真へのタグ追加・削除）
 // ============================================================================
@@ -789,6 +802,14 @@ function openPhotoEditor(item) {
   const openLink = $('#editor-open');
   openLink.setAttribute('href', googlePhotosUrl(item.id));
   openLink.onclick = (e) => openInGooglePhotos(item.id, e);
+  // Android のときだけ「アプリで開く」ボタンを表示
+  const openAppBtn = $('#editor-open-app');
+  if (isAndroid()) {
+    openAppBtn.hidden = false;
+    openAppBtn.onclick = (e) => openInPhotosApp(item.id, e);
+  } else {
+    openAppBtn.hidden = true;
+  }
 
   renderEditorTags();
   $('#editor-input').value = '';
